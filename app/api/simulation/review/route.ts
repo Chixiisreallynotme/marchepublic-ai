@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (Number(request.headers.get("content-length") ?? "0") > 4096) {
+    return NextResponse.json({ error: "Payload trop volumineux." }, { status: 413 });
+  }
+
   try {
     const body = await request.json();
     const parsed = reviewSchema.safeParse(body);
