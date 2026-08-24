@@ -41,6 +41,8 @@ model Tender {
   /// "DRAFT" | "PUBLISHED" | "IN_PROGRESS" | "CLOSED" | "AWARDED"
   status         String    @default("DRAFT")
   procedureType  String    @default("APPEL_OFFRES_OUVERT")
+  /// Code CPV (vocabulaire commun des marchés publics), ex. "45261210-9"
+  cpvCode        String?
   buyerName      String?
   estimatedValue Float?
   publicationDate DateTime?

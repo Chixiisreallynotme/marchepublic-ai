@@ -23,3 +23,14 @@ Started: 2026-08-24
 - vitest.config.ts (jsdom, globals) + __tests__/layout.test.tsx
 - Verification: npx tsc --noEmit = 0 errors | npm test = 4/4 pass | npm run build = success (static prerender, 0 errors)
 - COMPLETED: Next.js 15 App Router scaffolded with TailwindCSS and TypeScript strict; Prisma schema setup with SQLite and 7 models (Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany); Layout, Navbar, Footer components and Vitest suite passing 28/28 tests; Build verified with 0 errors
+
+---
+## US-002 — Database Layer: Prisma Migrations & Seed Data (2026-08-24)
+- Status: DONE
+- `npx prisma db push` applied → prisma/dev.db created (SQLite, 7 tables); added Tender.cpvCode column for CPV codes (45261210-9)
+- tsx installed as devDependency; package.json wired: `prisma.seed = "npx tsx prisma/seed.ts"` + `db:seed` script
+- prisma/seed.ts (idempotent reset + insert): Novatech BTP SAS (SIREN 834928192) linked to a realistic SireneCompany record (NAF 43.29A, SAS, Lyon 3e); tender AOO-2026-084-VM "Rénovation énergétique et isolation thermique du Groupe Scolaire Jean Moulin - Ville de Lyon" (850 000 €, deadline 15/09/2026, CPV 45261210-9, Ville de Lyon buyer)
+- 5 weighted criteria (40/20/15/15/10 = 100 %): Méthodologie d'exécution, Moyens humains et encadrement, Démarche environnementale et RSE, Planning et phasage en site occupé, Prix des prestations
+- TechnicalMemory IN_REVIEW with 5 detailed MemorySections answering each criterion point-by-point (word counts computed), plus pre-filled CERFA DC1 payload (cerfa n°11197*05, représentante légale, engagements, signature électronique)
+- __tests__/database.test.ts: real PrismaClient via `vi.unmock("@prisma/client")` + `@vitest-environment node`, queries tenders/criteria/memory sections/CERFA/Sirene through lib/prisma singleton against dev.db
+- Verification: npx prisma db seed OK | data verified in dev.db (1 org, 1 tender, 5 criteria, 1 memory, 5 sections, 1 DC1, 1 sirene row) | npx tsc --noEmit = 0 errors | npm test = 33/33 pass | npm run build = success
