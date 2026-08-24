@@ -1,29 +1,5 @@
 [
   {
-    "id": "chk_1787601012645",
-    "time": "2026-08-24T21:50:12",
-    "commit": "734734ecd506bfe797dafbf94cdca8aeb1929892",
-    "label": "auto-pre-run"
-  },
-  {
-    "id": "chk_1787601038298",
-    "time": "2026-08-24T21:50:38",
-    "commit": "33f82da8eeaca0f580f2f17d7ebc7e3dd8ee1892",
-    "label": "auto-pre-run"
-  },
-  {
-    "id": "chk_1787601043331",
-    "time": "2026-08-24T21:50:43",
-    "commit": "2b7e2b6a9e986420ae2263d4ccb1c1a6f87a6231",
-    "label": "auto-pre-run"
-  },
-  {
-    "id": "chk_1787601113668",
-    "time": "2026-08-24T21:51:53",
-    "commit": "da9a95597719434552b517384302e04288361f0a",
-    "label": "auto-pre-run"
-  },
-  {
     "id": "chk_1787601132664",
     "time": "2026-08-24T21:52:12",
     "commit": "f2a88252b34bc4ef3c068cca7a000e4ec1a24f65",
@@ -297,6 +273,30 @@
     "id": "chk_1787612309419",
     "time": "2026-08-25T00:58:29",
     "commit": "ab0142ab949b181024979c04675330ac31efa64b",
+    "label": "auto-pre-run"
+  },
+  {
+    "id": "chk_1787613687915",
+    "time": "2026-08-25T01:21:27",
+    "commit": "045929d1e318957d7e898b79f4266d283d5c15cb",
+    "label": "auto-pre-run"
+  },
+  {
+    "id": "chk_1787613704352",
+    "time": "2026-08-25T01:21:44",
+    "commit": "e8ecdbaeca883cc2ee1eac2d67077d41413fe7aa",
+    "label": "auto-pre-run"
+  },
+  {
+    "id": "chk_1787613811904",
+    "time": "2026-08-25T01:23:31",
+    "commit": "999fbe585a92afffa23ab36e5f28eec80af45bf3",
+    "label": "auto-pre-run"
+  },
+  {
+    "id": "chk_1787613830884",
+    "time": "2026-08-25T01:23:50",
+    "commit": "a272893943cf6862733c4740f64ceccf6a41d32b",
     "label": "auto-pre-run"
   }
 ]

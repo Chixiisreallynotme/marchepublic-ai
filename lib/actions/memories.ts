@@ -202,6 +202,19 @@ export async function reorderSections(
       return failure("Les sections doivent appartenir au même mémoire technique.");
     }
 
+    // Org scoping: cohérent avec createOrUpdate/updateStatus.
+    const parentMemory = await prisma.technicalMemory.findUnique({
+      where: { id: memoryIds.values().next().value as string },
+      select: { organizationId: true },
+    });
+    if (!parentMemory) {
+      return failure("Mémoire technique introuvable.");
+    }
+    const activeOrg = await getActiveOrganization();
+    if (parentMemory.organizationId !== activeOrg.id) {
+      return failure("Ce mémoire technique n'appartient pas à votre organisation.");
+    }
+
     const updatedSections = await prisma.$transaction(
       sections.map((s) =>
         prisma.memorySection.update({
@@ -233,8 +246,10 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
   try {
     // 3 requêtes groupées, progression pondérée EXACTE (poids des critères
     // réellement complétés), pagination bornée.
+    const activeOrg = await getActiveOrganization();
     const [memories, criteriaGroups] = await Promise.all([
       prisma.technicalMemory.findMany({
+        where: { organizationId: activeOrg.id },
         orderBy: { updatedAt: "desc" },
         take: 200,
         include: { tender: { select: { id: true, title: true } } },
@@ -248,10 +263,18 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
 
     const completedWeightByMemory = new Map<string, number>();
     const completedCriteriaByMemory = new Map<string, Set<string>>();
-    const sectionRows = await prisma.memorySection.findMany({
-      where: { wordCount: { gt: 0 }, criterionId: { not: null } },
-      select: { memoryId: true, criterionId: true, criterion: { select: { weight: true } } },
-    });
+    const memoryIds = memories.map((m) => m.id);
+    const sectionRows =
+      memoryIds.length > 0
+        ? await prisma.memorySection.findMany({
+            where: {
+              memoryId: { in: memoryIds },
+              wordCount: { gt: 0 },
+              criterionId: { not: null },
+            },
+            select: { memoryId: true, criterionId: true, criterion: { select: { weight: true } } },
+          })
+        : [];
     for (const row of sectionRows) {
       if (!row.criterion) continue;
       completedWeightByMemory.set(
