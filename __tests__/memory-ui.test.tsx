@@ -3,8 +3,6 @@ import { render, screen, fireEvent, waitFor, act, within } from "@testing-librar
 import { CriterionSelectorSidebar } from "@/app/tenders/[id]/memory/components/CriterionSelectorSidebar";
 import { SectionEditor } from "@/app/tenders/[id]/memory/components/SectionEditor";
 import { AutoSaveIndicator } from "@/app/tenders/[id]/memory/components/AutoSaveIndicator";
-import { GlobalProgressBar } from "@/app/tenders/[id]/memory/components/GlobalProgressBar";
-import { CompletionProgressBar } from "@/app/tenders/[id]/memory/components/CompletionProgressBar";
 import { MemoryHeader } from "@/app/tenders/[id]/memory/components/MemoryHeader";
 
 vi.mock("@/lib/utils", () => ({
@@ -261,46 +259,6 @@ describe("AutoSaveIndicator", () => {
   });
 });
 
-describe("GlobalProgressBar", () => {
-  it("affiche la barre de progression globale", () => {
-    render(<GlobalProgressBar memory={mockMemory} />);
-
-    expect(screen.getByRole("progressbar", { name: /progression globale du mémoire/i })).toBeInTheDocument();
-    expect(screen.getByText("2 sections")).toBeInTheDocument();
-    expect(screen.getByText("6 mots")).toBeInTheDocument();
-    expect(screen.getByText("2/3 critères")).toBeInTheDocument();
-  });
-
-  it("affiche la progression en pourcentage (67%)", () => {
-    render(<GlobalProgressBar memory={mockMemory} />);
-
-    expect(screen.getByText("67%")).toBeInTheDocument();
-  });
-
-  it("affiche le skeleton sans texte quand il n'y a pas de mémoire", () => {
-    render(<GlobalProgressBar memory={null} />);
-
-    expect(screen.queryByText("0%")).not.toBeInTheDocument();
-    expect(screen.queryByText("Progression globale du mémoire")).not.toBeInTheDocument();
-    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-  });
-});
-
-describe("CompletionProgressBar", () => {
-  it("affiche la progression par critère", () => {
-    render(<CompletionProgressBar memory={mockMemory} />);
-
-    expect(screen.getByRole("progressbar", { name: /progression par critère/i })).toBeInTheDocument();
-    expect(screen.getByText("67%")).toBeInTheDocument();
-  });
-
-  it("affiche 0% quand il n'y a pas de mémoire", () => {
-    render(<CompletionProgressBar memory={null} />);
-
-    expect(screen.getByText("0%")).toBeInTheDocument();
-  });
-});
-
 describe("MemoryHeader", () => {
   it("affiche le titre du mémoire et le statut", () => {
     render(<MemoryHeader memory={mockMemory} />);
@@ -318,7 +276,11 @@ describe("MemoryHeader", () => {
   });
 
   it("affiche un état par défaut quand tender est null", () => {
-    render(<MemoryHeader memory={{ ...mockMemory, tender: null }} />);
+    render(
+      <MemoryHeader
+        memory={null}
+      />
+    );
 
     expect(screen.getByText("Mémoire technique")).toBeInTheDocument();
     expect(screen.getByText("DRAFT")).toBeInTheDocument();

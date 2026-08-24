@@ -1,6 +1,19 @@
 "use server";
 
 import { z } from "zod";
+import {
+  PRISMA_FOREIGN_KEY_VIOLATION,
+  PRISMA_RECORD_NOT_FOUND,
+  PRISMA_UNIQUE_VIOLATION,
+  failure,
+  prismaErrorCode,
+  validationFailure,
+  type ActionFailure,
+  type ActionResult,
+  type FieldIssues,
+} from "@/lib/actions/shared";
+export type { ActionResult, FieldIssues } from "@/lib/actions/shared";
+
 import type {
   Criterion,
   MemorySection,
@@ -15,14 +28,6 @@ import {
   updateSectionSchema,
 } from "@/lib/schemas/memory";
 
-export type FieldIssues = Record<string, string[]>;
-
-export type ActionResult<TData> =
-  | { success: true; data: TData }
-  | { success: false; error: string; issues?: FieldIssues };
-
-type ActionFailure = { success: false; error: string; issues?: FieldIssues };
-
 export type TechnicalMemoryWithRelations = TechnicalMemory & {
   tender: {
     id: string;
@@ -31,39 +36,6 @@ export type TechnicalMemoryWithRelations = TechnicalMemory & {
   };
   sections: (MemorySection & { criterion: Criterion | null })[];
 };
-
-const PRISMA_UNIQUE_VIOLATION = "P2002";
-const PRISMA_FOREIGN_KEY_VIOLATION = "P2003";
-const PRISMA_RECORD_NOT_FOUND = "P2025";
-
-function prismaErrorCode(error: unknown): string | null {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === "string") return code;
-  }
-  return null;
-}
-
-function fieldIssuesFromZodError(error: z.ZodError): FieldIssues {
-  const issues: FieldIssues = {};
-  for (const issue of error.issues) {
-    const key = issue.path.length > 0 ? issue.path.map(String).join(".") : "_form";
-    (issues[key] ??= []).push(issue.message);
-  }
-  return issues;
-}
-
-function validationFailure(error: z.ZodError): ActionFailure {
-  return {
-    success: false,
-    error: "Les données soumises sont invalides.",
-    issues: fieldIssuesFromZodError(error),
-  };
-}
-
-function failure(error: string): ActionFailure {
-  return { success: false, error };
-}
 
 function handleDbError(operationLabel: string, error: unknown): ActionFailure {
   switch (prismaErrorCode(error)) {
@@ -149,9 +121,16 @@ export async function createOrUpdateMemorySection(
     }
 
     const wordCount = countWords(content);
+    const sectionId = parsed.data.id;
 
-    if ("id" in parsed.data && (parsed.data as any).id) {
-      const sectionId = (parsed.data as any).id;
+    if (sectionId) {
+      const existing = await prisma.memorySection.findUnique({
+        where: { id: sectionId },
+        select: { memoryId: true },
+      });
+      if (!existing || existing.memoryId !== memoryId) {
+        return failure("Section introuvable dans ce mémoire technique.");
+      }
       const updated = await prisma.memorySection.update({
         where: { id: sectionId },
         data: {
@@ -162,18 +141,18 @@ export async function createOrUpdateMemorySection(
         },
       });
       return { success: true, data: updated };
-    } else {
-      const created = await prisma.memorySection.create({
-        data: {
-          ...rest,
-          content,
-          wordCount,
-          memoryId,
-          criterionId: criterionId ?? null,
-        },
-      });
-      return { success: true, data: created };
     }
+
+    const created = await prisma.memorySection.create({
+      data: {
+        ...rest,
+        content,
+        wordCount,
+        memoryId,
+        criterionId: criterionId ?? null,
+      },
+    });
+    return { success: true, data: created };
   } catch (error) {
     return handleDbError("La création ou mise à jour de la section", error);
   }

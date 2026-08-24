@@ -28,6 +28,7 @@ export interface MemoryData {
   tender: {
     id: string;
     title: string;
+    reference?: string;
     criteria: Criterion[];
   };
   sections: Section[];

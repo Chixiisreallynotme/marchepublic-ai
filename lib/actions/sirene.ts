@@ -1,6 +1,19 @@
 "use server";
 
 import { z } from "zod";
+import {
+  PRISMA_FOREIGN_KEY_VIOLATION,
+  PRISMA_RECORD_NOT_FOUND,
+  PRISMA_UNIQUE_VIOLATION,
+  failure,
+  prismaErrorCode,
+  validationFailure,
+  type ActionFailure,
+  type ActionResult,
+  type FieldIssues,
+} from "@/lib/actions/shared";
+export type { ActionResult, FieldIssues } from "@/lib/actions/shared";
+
 import { prisma } from "@/lib/prisma";
 import {
   lookupSireneSchema,
@@ -11,17 +24,21 @@ import {
   type SireneApiResponse,
 } from "@/lib/schemas/sirene";
 
-export type FieldIssues = Record<string, string[]>;
-
-export type ActionResult<TData> =
-  | { success: true; data: TData }
-  | { success: false; error: string; issues?: FieldIssues };
-
-type ActionFailure = { success: false; error: string; issues?: FieldIssues };
-
-const PRISMA_UNIQUE_VIOLATION = "P2002";
-const PRISMA_FOREIGN_KEY_VIOLATION = "P2003";
-const PRISMA_RECORD_NOT_FOUND = "P2025";
+function handleDbError(operationLabel: string, error: unknown): ActionFailure {
+  switch (prismaErrorCode(error)) {
+    case PRISMA_UNIQUE_VIOLATION:
+      return failure("Une entreprise avec ce SIREN existe déjà.");
+    case PRISMA_FOREIGN_KEY_VIOLATION:
+      return failure(`${operationLabel} : l'entité associée n'existe pas.`);
+    case PRISMA_RECORD_NOT_FOUND:
+      return failure(`${operationLabel} : élément introuvable.`);
+    default:
+      console.error(`[actions/sirene] ${operationLabel}`, error);
+      return failure(
+        `${operationLabel} : une erreur interne est survenue. Réessayez plus tard.`
+      );
+  }
+}
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -61,51 +78,6 @@ async function fetchWithResilience(
 
   console.warn("[Sirene] fetch exhausted retries:", lastError);
   return null;
-}
-
-function prismaErrorCode(error: unknown): string | null {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === "string") return code;
-  }
-  return null;
-}
-
-function fieldIssuesFromZodError(error: z.ZodError): FieldIssues {
-  const issues: FieldIssues = {};
-  for (const issue of error.issues) {
-    const key = issue.path.length > 0 ? issue.path.map(String).join(".") : "_form";
-    (issues[key] ??= []).push(issue.message);
-  }
-  return issues;
-}
-
-function validationFailure(error: z.ZodError): ActionFailure {
-  return {
-    success: false,
-    error: "Les données soumises sont invalides.",
-    issues: fieldIssuesFromZodError(error),
-  };
-}
-
-function failure(error: string): ActionFailure {
-  return { success: false, error };
-}
-
-function handleDbError(operationLabel: string, error: unknown): ActionFailure {
-  switch (prismaErrorCode(error)) {
-    case PRISMA_UNIQUE_VIOLATION:
-      return failure("Une entreprise avec ce SIREN existe déjà.");
-    case PRISMA_FOREIGN_KEY_VIOLATION:
-      return failure(`${operationLabel} : l'entité associée n'existe pas.`);
-    case PRISMA_RECORD_NOT_FOUND:
-      return failure(`${operationLabel} : élément introuvable.`);
-    default:
-      console.error(`[actions/sirene] ${operationLabel}`, error);
-      return failure(
-        `${operationLabel} : une erreur interne est survenue. Réessayez plus tard.`
-      );
-  }
 }
 
 function isCacheFresh(fetchedAt: Date): boolean {

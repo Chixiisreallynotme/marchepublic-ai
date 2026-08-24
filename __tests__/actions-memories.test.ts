@@ -314,6 +314,7 @@ describe("createOrUpdateMemorySection", () => {
 
     mockedPrisma.technicalMemory.findUnique.mockImplementation(async () => memory);
     mockedPrisma.criterion.findUnique.mockImplementation(async () => criterion);
+    mockedPrisma.memorySection.findUnique.mockResolvedValueOnce({ memoryId: "memory-test-1" });
     mockedPrisma.memorySection.update.mockImplementation(async () => updatedSection);
 
     const result = await createOrUpdateMemorySection({
@@ -371,6 +372,49 @@ describe("createOrUpdateMemorySection", () => {
     if (!result.success) {
       expect(result.error).toContain("Critère introuvable");
     }
+  });
+
+  it("rejette la mise à jour d'une section appartenant à un autre mémoire (IDOR)", async () => {
+    const memory = memoryFixture();
+    const criterion = criterionFixture();
+
+    mockedPrisma.technicalMemory.findUnique.mockImplementation(async () => memory);
+    mockedPrisma.criterion.findUnique.mockImplementation(async () => criterion);
+    // La section existe mais appartient à un autre mémoire technique.
+    mockedPrisma.memorySection.findUnique.mockResolvedValueOnce({
+      memoryId: "memory-of-someone-else",
+    });
+
+    const result = await createOrUpdateMemorySection({
+      ...validSectionInput,
+      id: "section-of-someone-else",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("introuvable dans ce mémoire");
+    }
+    expect(mockedPrisma.memorySection.update).not.toHaveBeenCalled();
+  });
+
+  it("rejette la mise à jour d'une section inexistante (id inconnu)", async () => {
+    const memory = memoryFixture();
+    const criterion = criterionFixture();
+
+    mockedPrisma.technicalMemory.findUnique.mockImplementation(async () => memory);
+    mockedPrisma.criterion.findUnique.mockImplementation(async () => criterion);
+    mockedPrisma.memorySection.findUnique.mockResolvedValueOnce(null);
+
+    const result = await createOrUpdateMemorySection({
+      ...validSectionInput,
+      id: "section-unknown",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("introuvable dans ce mémoire");
+    }
+    expect(mockedPrisma.memorySection.update).not.toHaveBeenCalled();
   });
 
   it("accepte une section sans criterionId (section globale)", async () => {

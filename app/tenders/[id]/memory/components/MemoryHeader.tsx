@@ -1,9 +1,41 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { MemoryData } from "./types";
 
 interface MemoryHeaderProps {
-  memory: any;
+  memory: MemoryData | null;
+}
+
+function CompletionProgressBar({ memory }: { memory: MemoryData | null }) {
+  const totalCriteria = memory?.tender?.criteria?.length ?? 0;
+  const sections = memory?.sections ?? [];
+  const completedCriteria = new Set(
+    sections.map((s) => s.criterionId).filter(Boolean)
+  ).size;
+  const progress =
+    totalCriteria > 0 ? Math.round((completedCriteria / totalCriteria) * 100) : 0;
+
+  return (
+    <div
+      className="flex items-center gap-3 min-w-[200px]"
+      role="progressbar"
+      aria-valuenow={progress}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Progression par critère"
+    >
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-primary transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <span className="text-sm font-mono text-muted-foreground w-16 text-right">
+        {progress}%
+      </span>
+    </div>
+  );
 }
 
 export function MemoryHeader({ memory }: MemoryHeaderProps) {
@@ -27,7 +59,9 @@ export function MemoryHeader({ memory }: MemoryHeaderProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground">{tender.title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{tender.reference}</p>
+          {tender.reference && (
+            <p className="text-sm text-muted-foreground mt-1 font-mono">{tender.reference}</p>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <CompletionProgressBar memory={memory} />
@@ -46,23 +80,5 @@ export function MemoryHeader({ memory }: MemoryHeaderProps) {
         </div>
       </div>
     </header>
-  );
-}
-
-function CompletionProgressBar({ memory }: { memory: any }) {
-  const totalCriteria = memory?.tender?.criteria?.length ?? 0;
-  const sections = memory?.sections ?? [];
-  const completedCriteria = new Set(sections.map((s: any) => s.criterionId).filter(Boolean)).size;
-  const progress = totalCriteria > 0 ? Math.round((completedCriteria / totalCriteria) * 100) : 0;
-
-  return (
-    <div className="flex items-center gap-3 min-w-[200px]" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progression par critère">
-      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
-      </div>
-      <span className="text-sm font-mono text-muted-foreground w-16 text-right">
-        {progress}%
-      </span>
-    </div>
   );
 }

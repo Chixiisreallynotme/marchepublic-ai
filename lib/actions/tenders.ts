@@ -1,6 +1,19 @@
 "use server";
 
 import { z } from "zod";
+import {
+  PRISMA_FOREIGN_KEY_VIOLATION,
+  PRISMA_RECORD_NOT_FOUND,
+  PRISMA_UNIQUE_VIOLATION,
+  failure,
+  prismaErrorCode,
+  validationFailure,
+  type ActionFailure,
+  type ActionResult,
+  type FieldIssues,
+} from "@/lib/actions/shared";
+export type { ActionResult, FieldIssues } from "@/lib/actions/shared";
+
 import type { Criterion, Organization, Tender } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -9,14 +22,6 @@ import {
   updateCriterionSchema,
   updateTenderSchema,
 } from "@/lib/schemas/tender";
-
-export type FieldIssues = Record<string, string[]>;
-
-export type ActionResult<TData> =
-  | { success: true; data: TData }
-  | { success: false; error: string; issues?: FieldIssues };
-
-type ActionFailure = { success: false; error: string; issues?: FieldIssues };
 
 export type TenderWithCounts = Tender & {
   organization: Organization;
@@ -27,39 +32,6 @@ export type TenderWithRelations = Tender & {
   organization: Organization;
   criteria: Criterion[];
 };
-
-const PRISMA_UNIQUE_VIOLATION = "P2002";
-const PRISMA_FOREIGN_KEY_VIOLATION = "P2003";
-const PRISMA_RECORD_NOT_FOUND = "P2025";
-
-function prismaErrorCode(error: unknown): string | null {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === "string") return code;
-  }
-  return null;
-}
-
-function fieldIssuesFromZodError(error: z.ZodError): FieldIssues {
-  const issues: FieldIssues = {};
-  for (const issue of error.issues) {
-    const key = issue.path.length > 0 ? issue.path.map(String).join(".") : "_form";
-    (issues[key] ??= []).push(issue.message);
-  }
-  return issues;
-}
-
-function validationFailure(error: z.ZodError): ActionFailure {
-  return {
-    success: false,
-    error: "Les données soumises sont invalides.",
-    issues: fieldIssuesFromZodError(error),
-  };
-}
-
-function failure(error: string): ActionFailure {
-  return { success: false, error };
-}
 
 function handleDbError(operationLabel: string, error: unknown): ActionFailure {
   switch (prismaErrorCode(error)) {
