@@ -54,6 +54,13 @@ async function fetchWithResilience(
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    if (attempt > 0) {
+      // Exponential backoff with jitter — runs for EVERY retry path
+      // (network errors, timeouts, 5xx and 429 alike).
+      const backoff = 300 * 2 ** (attempt - 1) + Math.floor(Math.random() * 150);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
@@ -68,11 +75,6 @@ async function fetchWithResilience(
       lastError = error;
     } finally {
       clearTimeout(timer);
-    }
-    // Exponential backoff with jitter before the next attempt.
-    if (attempt < FETCH_RETRIES) {
-      const backoff = 300 * 2 ** attempt + Math.floor(Math.random() * 150);
-      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
 
@@ -247,6 +249,19 @@ export async function lookupSirene(input: LookupSireneInput): Promise<ActionResu
       return failure(
         "Entreprise introuvable dans le registre Sirene (recherche-entreprises.api.gouv.fr)."
       );
+    }
+
+    // Offline fallbacks are returned but NEVER persisted — caching a
+    // placeholder would poison the SireneCompany table as "fresh" for 7 days.
+    if (process.env.NODE_ENV !== "production" && apiResponse.denomination.startsWith("[HORS-LIGNE]") && !cached?.denomination.startsWith("[HORS-LIGNE]")) {
+      return {
+        success: true,
+        data: {
+          id: `offline-${siren}`,
+          ...apiResponse,
+          fetchedAt: new Date(),
+        } as SireneCompany,
+      };
     }
 
     const companyData = mapToSireneCompany(apiResponse);

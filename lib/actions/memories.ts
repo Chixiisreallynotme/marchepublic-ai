@@ -172,10 +172,17 @@ export async function reorderSections(
     const sectionIds = sections.map((s) => s.id);
     const existingSections = await prisma.memorySection.findMany({
       where: { id: { in: sectionIds } },
+      select: { id: true, memoryId: true },
     });
 
     if (existingSections.length !== sections.length) {
       return failure("Une ou plusieurs sections sont introuvables.");
+    }
+
+    // Anti cross-memory reorder: every section must belong to one memory.
+    const memoryIds = new Set(existingSections.map((s) => s.memoryId));
+    if (memoryIds.size !== 1) {
+      return failure("Les sections doivent appartenir au même mémoire technique.");
     }
 
     const updatedSections = await prisma.$transaction(
@@ -207,41 +214,52 @@ export type MemoryOverviewItem = {
 
 export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>> {
   try {
-    const memories = await prisma.technicalMemory.findMany({
-      orderBy: { updatedAt: "desc" },
-      include: {
-        tender: { select: { id: true, title: true } },
-        sections: {
-          select: {
-            content: true,
-            criterion: { select: { weight: true } },
-          },
-        },
-      },
-    });
+    // 3 requêtes groupées au lieu de 2N+1 (anti N+1).
+    const [memories, doneGroups, criteriaGroups] = await Promise.all([
+      prisma.technicalMemory.findMany({
+        orderBy: { updatedAt: "desc" },
+        include: { tender: { select: { id: true, title: true } } },
+      }),
+      prisma.memorySection.groupBy({
+        by: ["memoryId"],
+        _count: { _all: true },
+        where: { wordCount: { gt: 0 } },
+      }),
+      prisma.criterion.groupBy({
+        by: ["tenderId"],
+        _count: { _all: true },
+        _sum: { weight: true },
+      }),
+    ]);
 
-    const items = await Promise.all(
-      memories.map(async (memory) => {
-        const criteriaCount = await prisma.criterion.count({ where: { tenderId: memory.tenderId } });
-        const done = memory.sections.filter((s) => s.content.trim().length > 0);
-        const weightTotal = done.reduce((sum, s) => sum + (s.criterion?.weight ?? 0), 0);
-        const allWeights =
-          (await prisma.criterion.aggregate({ where: { tenderId: memory.tenderId }, _sum: { weight: true } }))
-            ._sum.weight ?? 0;
-        return {
-          id: memory.id,
-          title: memory.title,
-          status: memory.status,
-          updatedAt: memory.updatedAt,
-          tenderId: memory.tenderId,
-          tenderTitle: memory.tender.title,
-          criteriaCount,
-          sectionsDone: done.length,
-          totalWeightedProgress:
-            allWeights > 0 ? Math.round((weightTotal / allWeights) * 100) : 0,
-        };
-      })
+    const doneByMemory = new Map(doneGroups.map((g) => [g.memoryId, g._count._all]));
+    const criteriaByTender = new Map(
+      criteriaGroups.map((g) => [
+        g.tenderId,
+        { count: g._count._all, weight: g._sum.weight ?? 0 },
+      ])
     );
+
+    const items = memories.map((memory) => {
+      const criteria = criteriaByTender.get(memory.tenderId);
+      const criteriaCount = criteria?.count ?? 0;
+      const totalWeight = criteria?.weight ?? 0;
+      const doneWeight = totalWeight > 0 && criteriaCount > 0
+        ? (doneByMemory.get(memory.id) ?? 0) * (totalWeight / criteriaCount)
+        : 0;
+      return {
+        id: memory.id,
+        title: memory.title,
+        status: memory.status,
+        updatedAt: memory.updatedAt,
+        tenderId: memory.tender.id,
+        tenderTitle: memory.tender.title,
+        criteriaCount,
+        sectionsDone: doneByMemory.get(memory.id) ?? 0,
+        totalWeightedProgress:
+          totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0,
+      };
+    });
 
     return { success: true, data: items };
   } catch (error) {

@@ -4,11 +4,16 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
 const MAX_DCE_BYTES = 25 * 1024 * 1024;
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "application/zip",
-  "application/x-zip-compressed",
-]);
+
+function detectMagic(bytes: Uint8Array): "pdf" | "zip" | null {
+  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) {
+    return "pdf";
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)) {
+    return "zip";
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,17 +31,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isPdfName = file.name.toLowerCase().endsWith(".pdf");
-    const isZipName = /\.(zip|rar|7z)$/i.test(file.name);
-    if (!ALLOWED_MIME.has(file.type) && !isPdfName && !isZipName) {
+    if (file.size === 0) {
+      return NextResponse.json({ error: "Fichier vide." }, { status: 400 });
+    }
+
+    // Content-Type and extension are client-declared and untrustworthy:
+    // validate the actual magic bytes instead.
+    const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+    const kind = detectMagic(header);
+
+    if (!kind) {
       return NextResponse.json(
-        { error: "Format non supporté (PDF ou archive ZIP attendus)." },
+        { error: "Format non supporté (PDF ou ZIP réels uniquement, vérifiés par signature)." },
         { status: 415 }
       );
     }
 
-    const safeExt = isPdfName ? ".pdf" : ".zip";
-    const fileName = `${randomUUID()}${safeExt}`;
+    const fileName = `${randomUUID()}.${kind}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));

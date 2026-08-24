@@ -131,65 +131,91 @@ describe("CriterionSelectorSidebar", () => {
 
 describe("SectionEditor", () => {
   it("affiche l'état vide quand aucune section n'est fournie", () => {
-    render(<SectionEditor section={null} criterionTitle={undefined} onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={null} criterionTitle={undefined} onSave={vi.fn()} />);
 
     expect(screen.getByText("Sélectionnez un critère pour commencer")).toBeInTheDocument();
     expect(screen.getByText("Les sections sont automatiquement liées aux critères d'évaluation.")).toBeInTheDocument();
   });
 
   it("affiche l'état vide avec le titre du critère quand fourni", () => {
-    render(<SectionEditor section={null} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={null} criterionTitle="Prix" onSave={vi.fn()} />);
 
     expect(screen.getByText(/sélectionnez un critère pour commencer/i)).toBeInTheDocument();
   });
 
   it("affiche le titre et le contenu de la section", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} />);
 
     expect(screen.getByText("Offre économique")).toBeInTheDocument();
     expect(screen.getByText("Notre offre économique détaillée")).toBeInTheDocument();
   });
 
   it("affiche le nombre de mots", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} />);
 
     expect(screen.getByText("4 mots")).toBeInTheDocument();
   });
 
-  it("affiche l'indicateur de sauvegarde", () => {
-    const lastSaved = new Date();
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={lastSaved} />);
+  it("affiche le bouton Enregistrer et l'état non enregistré après saisie", async () => {
+    vi.useFakeTimers();
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn().mockResolvedValue(true)} />);
 
-    expect(screen.getByText(`Dernière sauvegarde: ${lastSaved.toLocaleTimeString()}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enregistrer/i })).toBeInTheDocument();
+
+    const textarea = screen.getByPlaceholderText(/rédigez votre contenu/i);
+    fireEvent.change(textarea, { target: { value: "Contenu modifié" } });
+    expect(screen.getByText(/modifications non enregistrées/i)).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
-  it("affiche 'Sauvegarde en cours...' pendant la sauvegarde", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={true} lastSaved={null} />);
+  it("déclenche la sauvegarde au clic sur Enregistrer", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={onSave} />);
 
-    expect(screen.getByText("Sauvegarde en cours...")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/enregistré à/i)).toBeInTheDocument();
   });
 
   it("met à jour le compteur de mots pendant la saisie", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} />);
 
-    const textarea = screen.getByPlaceholderText("Rédigez votre contenu ici... Markdown supporté.");
+    const textarea = screen.getByPlaceholderText(/rédigez votre contenu/i);
     fireEvent.change(textarea, { target: { value: "Nouveau contenu test" } });
-    
+
     expect(screen.getByText("3 mots")).toBeInTheDocument();
   });
 
-  it("appelle onSave au clic sur sauvegarder", async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={onSave} isSaving={false} lastSaved={null} />);
+  it("sauvegarde automatiquement après le délai (autosave 1,5 s)", async () => {
+    vi.useFakeTimers();
+    try {
+      const onSave = vi.fn().mockResolvedValue(true);
+      render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={onSave} />);
 
-    // Note: The current implementation doesn't have a visible save button in the editor
-    // This test would need a save button to be added to the component
-    expect(onSave).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByPlaceholderText(/rédigez votre contenu/i), {
+        target: { value: "Saisie autosave" },
+      });
+      expect(onSave).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1600);
+      expect(onSave).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sauvegarde au blur après modification", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={onSave} />);
+
+    const textarea = screen.getByPlaceholderText(/rédigez votre contenu/i);
+    fireEvent.change(textarea, { target: { value: "Blur save" } });
+    fireEvent.blur(textarea);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
   });
 
   it("affiche le bouton de suppression quand onDelete est fourni", () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} onDelete={onDelete} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} onDelete={onDelete} />);
 
     const deleteButton = screen.getByLabelText("Supprimer la section");
     expect(deleteButton).toBeInTheDocument();
@@ -197,7 +223,7 @@ describe("SectionEditor", () => {
 
   it("appelle onDelete au clic sur supprimer", async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} onDelete={onDelete} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} onDelete={onDelete} />);
 
     const deleteButton = screen.getByLabelText("Supprimer la section");
     fireEvent.click(deleteButton);
@@ -206,13 +232,13 @@ describe("SectionEditor", () => {
   });
 
   it("ne montre pas le bouton de suppression quand onDelete n'est pas fourni", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} />);
 
     expect(screen.queryByLabelText("Supprimer la section")).not.toBeInTheDocument();
   });
 
   it("permet d'éditer le titre au double-clic", () => {
-    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} />);
 
     const title = screen.getByText("Offre économique");
     fireEvent.dblClick(title);

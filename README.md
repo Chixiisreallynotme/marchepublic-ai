@@ -7,7 +7,7 @@ Plateforme d'assistance IA pour les marchés publics français : appels d'offres
 - **Next.js 15** (App Router, Server Actions) + **React 19** + TypeScript strict
 - **Prisma** sur **SQLite** (`prisma/dev.db`) — migration Postgres prévue en V2
 - **Tailwind CSS** (design tokens dans `app/globals.css` + `tailwind.config.ts`)
-- **Vitest** + Testing Library (216 tests, `__tests__/`)
+- **Vitest** + Testing Library (217 tests, `__tests__/`)
 - **pdf-lib** pour la génération CERFA côté serveur
 
 ## Démarrage
@@ -52,7 +52,7 @@ prisma/                schéma 7 modèles + seed
 
 ```bash
 npx tsc --noEmit   # typage strict
-npm test           # vitest (216 tests)
+npm test           # vitest (217 tests)
 npm run build      # build production
 ```
 

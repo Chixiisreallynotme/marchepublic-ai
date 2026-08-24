@@ -1,109 +1,156 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { CriterionSelectorSidebar } from "./CriterionSelectorSidebar";
 import { SectionEditor } from "./SectionEditor";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { CriterionProgress, GlobalProgress } from "./ProgressBar";
-import { cn } from "@/lib/utils";
+import { updateMemoryStatus } from "@/lib/actions/memories";
 import type { Criterion, Section, MemoryData } from "./types";
+
+function isDraftId(id: string): boolean {
+  return id.startsWith("draft-") || id.startsWith("temp-");
+}
 
 export function MemoryPage({ initialData }: { initialData: MemoryData | null }) {
   const [memory, setMemory] = useState<MemoryData | null>(initialData);
   const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const selectedCriterion = memory?.tender.criteria.find(c => c.id === selectedCriterionId) || null;
-  const selectedSection = selectedCriterionId
-    ? memory?.sections.find(s => s.criterion?.id === selectedCriterionId || s.criterionId === selectedCriterionId)
+  const selectedCriterion =
+    memory?.tender.criteria.find((c) => c.id === selectedCriterionId) || null;
+
+  // A real persisted section when one exists for the criterion, otherwise a
+  // local draft so the editor can create content on first save.
+  const existingSection =
+    selectedCriterionId
+      ? memory?.sections.find(
+          (s) =>
+            (s.criterion?.id === selectedCriterionId ||
+              s.criterionId === selectedCriterionId)
+        ) ?? null
+      : null;
+
+  const selectedSection: Section | null = selectedCriterionId
+    ? existingSection ?? {
+        id: `draft-${selectedCriterionId}`,
+        title: selectedCriterion?.title ?? "Nouvelle section",
+        content: "",
+        wordCount: 0,
+        criterionId: selectedCriterionId,
+        order: memory?.sections.length ?? 0,
+      }
     : null;
 
-  const totalWeight = memory?.tender.criteria.reduce((sum, c) => sum + c.weight, 0) || 0;
-  const completedWeight = memory?.tender.criteria
-    .filter(c => memory?.sections.some(s => (s.criterion?.id === c.id || s.criterionId === c.id) && s.content.trim().length > 0))
-    .reduce((sum, c) => sum + c.weight, 0) || 0;
+  const totalWeight =
+    memory?.tender.criteria.reduce((sum, c) => sum + c.weight, 0) || 0;
+  const completedWeight =
+    memory?.tender.criteria
+      .filter((c) =>
+        memory?.sections.some(
+          (s) =>
+            (s.criterion?.id === c.id || s.criterionId === c.id) &&
+            s.content.trim().length > 0
+        )
+      )
+      .reduce((sum, c) => sum + c.weight, 0) || 0;
   const totalSections = memory?.sections.length || 0;
-  const completedSections = memory?.sections.filter(s => s.content.trim().length > 0).length || 0;
+  const completedSections =
+    memory?.sections.filter((s) => s.content.trim().length > 0).length || 0;
 
-  const handleSaveSection = useCallback(async (section: Section) => {
-    setIsSaving(true);
-    setHasUnsavedChanges(false);
-    try {
-      const response = await fetch("/api/memory/sections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(section),
-      });
-      if (!response.ok) throw new Error("Erreur lors de la sauvegarde");
+  const handleSaveSection = useCallback(
+    async (section: Section): Promise<boolean> => {
+      if (!memory) return false;
+      const payload = {
+        memoryId: memory.id,
+        criterionId: section.criterionId ?? null,
+        title: section.title,
+        content: section.content,
+        order: section.order,
+        ...(isDraftId(section.id) ? {} : { id: section.id }),
+      };
 
-      const savedSection = await response.json();
-      setMemory(prev => prev ? {
-        ...prev,
-        sections: prev.sections.map(s => s.id === section.id ? savedSection : s),
-      } : null);
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error("Erreur sauvegarde:", error);
-      setHasUnsavedChanges(true);
-    } finally {
-      setIsSaving(false);
-    }
-  }, []);
+      try {
+        const response = await fetch("/api/memory/sections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          console.error("Erreur sauvegarde:", body.error ?? response.status);
+          return false;
+        }
+
+        const savedSection = (await response.json()) as Section & {
+          criterion?: Criterion | null;
+        };
+        setMemory((prev) => {
+          if (!prev) return prev;
+          const withoutDraft = prev.sections.filter(
+            (s) => s.id !== section.id
+          );
+          const exists = withoutDraft.some((s) => s.id === savedSection.id);
+          return {
+            ...prev,
+            sections: exists
+              ? withoutDraft.map((s) =>
+                  s.id === savedSection.id ? { ...savedSection } : s
+                )
+              : [...withoutDraft, { ...savedSection }],
+          };
+        });
+        return true;
+      } catch (error) {
+        console.error("Erreur sauvegarde:", error);
+        return false;
+      }
+    },
+    [memory]
+  );
 
   const handleDeleteSection = useCallback(async (sectionId: string) => {
+    if (isDraftId(sectionId)) {
+      // Local draft: nothing persisted, just clear the editor selection.
+      setMemory((prev) => (prev ? { ...prev } : prev));
+      return;
+    }
     try {
       const response = await fetch(`/api/memory/sections/${sectionId}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Erreur lors de la suppression");
-
-      setMemory(prev => prev ? {
-        ...prev,
-        sections: prev.sections.filter(s => s.id !== sectionId),
-      } : null);
-      setLastSaved(new Date());
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        console.error("Erreur suppression:", body.error ?? response.status);
+        return;
+      }
+      setMemory((prev) =>
+        prev ? { ...prev, sections: prev.sections.filter((s) => s.id !== sectionId) } : prev
+      );
     } catch (error) {
       console.error("Erreur suppression:", error);
     }
   }, []);
 
-  const handleCreateSection = useCallback(async () => {
-    if (!memory || !selectedCriterionId) return;
-
-    const newSection: Section = {
-      id: `temp-${Date.now()}`,
-      title: "Nouvelle section",
-      content: "",
-      wordCount: 0,
-      criterionId: selectedCriterionId,
-      order: memory.sections.filter(s => s.criterion?.id === selectedCriterionId || s.criterionId === selectedCriterionId).length,
-    };
-
-    setMemory(prev => prev ? {
-      ...prev,
-      sections: [...prev.sections, newSection],
-    } : null);
-    setSelectedCriterionId(selectedCriterionId);
-  }, [memory, selectedCriterionId]);
-
-  const handleReorderSections = useCallback(async (sections: { id: string; order: number }[]) => {
-    try {
-      const response = await fetch("/api/memory/sections/reorder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections }),
-      });
-      if (!response.ok) throw new Error("Erreur lors de la réorganisation");
-    } catch (error) {
-      console.error("Erreur réorganisation:", error);
-    }
-  }, []);
+  const handleStatusChange = useCallback(
+    async (newStatus: "DRAFT" | "IN_REVIEW" | "SUBMITTED") => {
+      if (!memory) return;
+      const previous = memory.status;
+      setMemory((prev) => (prev ? { ...prev, status: newStatus } : prev));
+      const result = await updateMemoryStatus(memory.id, newStatus);
+      if (!result.success) {
+        console.error("Erreur changement de statut:", result.error);
+        setMemory((prev) => (prev ? { ...prev, status: previous } : prev));
+      }
+    },
+    [memory]
+  );
 
   const getCriterionProgress = (criterion: Criterion) => {
-    const sections = memory?.sections.filter(s => s.criterion?.id === criterion.id || s.criterionId === criterion.id) || [];
-    const completed = sections.filter(s => s.content.trim().length > 0).length;
+    const sections =
+      memory?.sections.filter(
+        (s) => s.criterion?.id === criterion.id || s.criterionId === criterion.id
+      ) || [];
+    const completed = sections.filter((s) => s.content.trim().length > 0).length;
     return { completed, total: sections.length };
   };
 
@@ -139,16 +186,12 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
             </p>
           </div>
           <div className="flex items-center gap-4 flex-shrink-0">
-            <AutoSaveIndicator
-              isSaving={isSaving}
-              lastSaved={lastSaved}
-              hasChanges={hasUnsavedChanges}
-            />
+            <AutoSaveIndicator isSaving={false} lastSaved={null} hasChanges={false} />
             <select
               value={memory.status}
               onChange={(e) => {
                 const newStatus = e.target.value as "DRAFT" | "IN_REVIEW" | "SUBMITTED";
-                setMemory(prev => prev ? { ...prev, status: newStatus } : null);
+                void handleStatusChange(newStatus);
               }}
               aria-label="Statut du mémoire technique"
               className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -164,12 +207,12 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
           {selectedCriterionId ? (
             <div className="flex-1 flex flex-col min-w-0 p-6">
               <SectionEditor
-                section={selectedSection || null}
+                section={selectedSection}
                 criterionTitle={selectedCriterion?.title}
                 onSave={handleSaveSection}
-                onDelete={selectedSection ? handleDeleteSection : undefined}
-                isSaving={isSaving}
-                lastSaved={lastSaved}
+                onDelete={
+                  existingSection ? handleDeleteSection : undefined
+                }
               />
             </div>
           ) : (
@@ -187,7 +230,7 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
                     Progression par critère
                   </h2>
                   <div className="space-y-4">
-                    {memory.tender.criteria.map(criterion => {
+                    {memory.tender.criteria.map((criterion) => {
                       const { completed, total } = getCriterionProgress(criterion);
                       return (
                         <CriterionProgress

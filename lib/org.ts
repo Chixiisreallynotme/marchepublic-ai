@@ -8,11 +8,9 @@ export type ActiveOrganization = {
   sireneCompanyId: string | null;
 };
 
-let cached: ActiveOrganization | undefined;
-
+// No module-level cache: SQLite local lookups are sub-millisecond and a
+// cached organization would go stale after seed resets or deletions.
 export async function getActiveOrganization(): Promise<ActiveOrganization> {
-  if (cached !== undefined) return cached;
-
   const existing =
     (await prisma.organization.findFirst({
       where: { role: "BIDDER" },
@@ -25,23 +23,15 @@ export async function getActiveOrganization(): Promise<ActiveOrganization> {
     }));
 
   if (existing) {
-    cached = {
+    return {
       id: existing.id,
       name: existing.name,
       sireneCompanyId: existing.sireneCompanyId,
     };
-    return cached;
   }
 
-  const created = await prisma.organization.create({
+  return prisma.organization.create({
     data: { name: DEFAULT_ORG_NAME, role: "BIDDER" },
     select: { id: true, name: true, sireneCompanyId: true },
   });
-
-  cached = created;
-  return cached;
-}
-
-export function invalidateOrgCache() {
-  cached = undefined;
 }

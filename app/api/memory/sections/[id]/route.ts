@@ -8,10 +8,22 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    if (!id || id.startsWith("temp-")) {
+    if (!id || id.startsWith("temp-") || id.startsWith("draft-")) {
       return NextResponse.json(
         { error: "Identifiant de section invalide." },
         { status: 400 }
+      );
+    }
+
+    const section = await prisma.memorySection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!section) {
+      return NextResponse.json(
+        { error: "Section introuvable." },
+        { status: 404 }
       );
     }
 

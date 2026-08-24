@@ -236,7 +236,7 @@ export function NewTenderForm({ organizationId }: { organizationId: string }) {
               <label
                 className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${uploading ? "border-brand-300 bg-brand-50/50 dark:bg-brand-900/10" : "border-border hover:border-brand-400 hover:bg-muted/50"}`}
               >
-                <input type="file" accept=".pdf,.zip,.rar,.7z,application/pdf,application/zip"
+                <input type="file" accept=".pdf,.zip,application/pdf,application/zip"
                   className="sr-only"
                   disabled={uploading}
                   onChange={(e) => {
@@ -249,7 +249,7 @@ export function NewTenderForm({ organizationId }: { organizationId: string }) {
                   <>
                     <FileUp className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
                     <span className="text-sm font-medium">Déposer le DCE</span>
-                    <span className="text-xs text-muted-foreground">PDF ou archive · 25 Mo max</span>
+                    <span className="text-xs text-muted-foreground">PDF ou ZIP · 25 Mo max (signature vérifiée)</span>
                   </>
                 )}
               </label>

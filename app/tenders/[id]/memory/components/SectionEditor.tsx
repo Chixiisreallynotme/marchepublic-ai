@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Section } from "./types";
 
 interface SectionEditorProps {
   section: Section | null;
   criterionTitle?: string;
-  onSave: (section: Section) => Promise<void>;
+  onSave: (section: Section) => Promise<boolean>;
   onDelete?: (sectionId: string) => Promise<void>;
-  isSaving: boolean;
-  lastSaved: Date | null;
 }
 
 function countWords(text: string): number {
@@ -18,45 +17,99 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).length;
 }
 
+const AUTOSAVE_DELAY_MS = 1500;
+
 export function SectionEditor({
   section,
   criterionTitle,
   onSave,
   onDelete,
-  isSaving,
-  lastSaved,
 }: SectionEditorProps) {
   const [title, setTitle] = useState(section?.title || "");
   const [content, setContent] = useState(section?.content || "");
   const [wordCount, setWordCount] = useState(section?.wordCount || 0);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef({ title, content, wordCount });
 
   useEffect(() => {
-    if (section) {
-      setTitle(section.title);
-      setContent(section.content);
-      setWordCount(section.wordCount);
-    }
-  }, [section]);
+    setTitle(section?.title || "");
+    setContent(section?.content || "");
+    setWordCount(section?.wordCount || 0);
+    setHasChanges(false);
+    setSaveError(null);
+    setLastSaved(null);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, [section?.id, section?.criterionId]);
 
-  const handleContentChange = useCallback((newContent: string) => {
-    setContent(newContent);
-    setWordCount(countWords(newContent));
+  useEffect(() => {
+    latest.current = { title, content, wordCount };
+  }, [title, content, wordCount]);
+
+  const persist = useCallback(async () => {
+    if (!section) return false;
+    setIsSaving(true);
+    setSaveError(null);
+    const ok = await onSave({
+      ...section,
+      title: latest.current.title,
+      content: latest.current.content,
+      wordCount: latest.current.wordCount,
+    });
+    setIsSaving(false);
+    if (ok) {
+      setHasChanges(false);
+      setLastSaved(new Date());
+    } else {
+      setSaveError("Échec de la sauvegarde — réessayez.");
+      setHasChanges(true);
+    }
+    return ok;
+  }, [section, onSave]);
+
+  const scheduleAutosave = useCallback(() => {
+    setHasChanges(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void persist(), AUTOSAVE_DELAY_MS);
+  }, [persist]);
+
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (hasChanges || isSaving) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasChanges, isSaving]);
+
+  // Clear any pending autosave only on unmount — never on state flips,
+  // otherwise the pending timer would be cancelled by its own effect.
+  useEffect(() => {
+    const timerRef = saveTimer;
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
-  const handleSave = useCallback(async () => {
-    if (!section) return;
-    const updatedSection: Section = {
-      ...section,
-      title,
-      content,
-      wordCount,
-    };
-    await onSave(updatedSection);
-  }, [section, title, content, wordCount, onSave]);
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      setContent(newContent);
+      setWordCount(countWords(newContent));
+      scheduleAutosave();
+    },
+    [scheduleAutosave]
+  );
 
   const handleDelete = useCallback(async () => {
     if (!section || !onDelete) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     await onDelete(section.id);
   }, [section, onDelete]);
 
@@ -75,10 +128,51 @@ export function SectionEditor({
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <div className="p-4 border-b border-border bg-card/50">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">
             {criterionTitle ? `Section — ${criterionTitle}` : "Section"}
           </h2>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span aria-live="polite" role="status">
+              {isSaving
+                ? "Sauvegarde…"
+                : saveError
+                ? saveError
+                : hasChanges
+                ? "Modifications non enregistrées"
+                : lastSaved
+                ? `Enregistré à ${lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => void persist()}
+              disabled={isSaving || (!hasChanges && !lastSaved && content.length === 0)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                "bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:pointer-events-none"
+              )}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Save className="h-4 w-4" aria-hidden="true" />
+              )}
+              Enregistrer
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                aria-label="Supprimer la section"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -103,25 +197,21 @@ export function SectionEditor({
                 <span className="flex-shrink-0 px-2 py-0.5 text-xs font-mono text-muted-foreground bg-muted rounded">
                   {wordCount} mots
                 </span>
-                {onDelete && (
-                  <button
-                    onClick={handleDelete}
-                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    aria-label="Supprimer la section"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
               </div>
 
               <textarea
                 value={content}
                 onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Rédigez votre contenu ici... Markdown supporté."
-                className="w-full min-h-[120px] p-3 bg-background border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-sans text-sm leading-relaxed"
-                rows={6}
+                onBlur={() => { if (hasChanges) void persist(); }}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                    e.preventDefault();
+                    void persist();
+                  }
+                }}
+                placeholder="Rédigez votre contenu ici... Sauvegarde automatique toutes les 1,5 s, Ctrl+S ou bouton Enregistrer."
+                className="w-full min-h-[320px] p-3 bg-background border border-border rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-sans text-sm leading-relaxed"
+                rows={10}
                 aria-label={`Contenu de la section ${title}`}
                 spellCheck={true}
               />

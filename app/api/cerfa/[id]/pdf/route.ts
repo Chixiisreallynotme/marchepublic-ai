@@ -48,8 +48,9 @@ export async function GET(
     });
   } catch (error) {
     console.error("[API/cerfa/pdf] GET error:", error);
-    const message =
-      error instanceof Error ? error.message : "Une erreur interne est survenue.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Le document ne peut pas être généré (contenu invalide)." },
+      { status: 422 }
+    );
   }
 }

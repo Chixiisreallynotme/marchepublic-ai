@@ -242,9 +242,8 @@ export async function renderCerfaPdf(input: CerfaDocumentInput): Promise<Uint8Ar
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  if (input.formType === "DC1") renderDc1(pdf, regular, bold, input);
-  else if (input.formType === "DC2") renderDc2(pdf, regular, bold, input);
-  else throw new Error(`Génération PDF non supportée pour ${input.formType} (DC1 et DC2 disponibles en V1).`);
+  if (input.formType === "DC2") renderDc2(pdf, regular, bold, input as DC2Input);
+  else renderDc1(pdf, regular, bold, input as DC1Input);
 
   return pdf.save();
 }
@@ -259,13 +258,13 @@ function renderDc1(pdf: PDFDocument, regular: PDFFont, bold: PDFFont, d: DC1Inpu
 
   doc.section("Identification du candidat");
   doc.fields([
-    { label: "Dénomination sociale", value: d.candidate.denomination },
+    { label: "Dénomination sociale", value: d.candidate?.denomination ?? "Candidat" },
     { label: "Forme juridique", value: d.candidate.legalForm },
-    { label: "SIREN", value: d.candidate.siren },
-    { label: "SIRET", value: d.candidate.siret },
-    { label: "Code activité (APE)", value: d.candidate.activityCode },
-    { label: "Adresse du siège", value: addressLine(d.candidate) },
-    { label: "Contact", value: [d.candidate.email, d.candidate.phone].filter(Boolean).join(" · ") },
+    { label: "SIREN", value: d.candidate?.siren },
+    { label: "SIRET", value: d.candidate?.siret },
+    { label: "Code activité (APE)", value: d.candidate?.activityCode },
+    { label: "Adresse du siège", value: addressLine(d.candidate ?? {}) },
+    { label: "Contact", value: [d.candidate?.email, d.candidate?.phone].filter(Boolean).join(" · ") },
   ]);
 
   if (d.representative) {
@@ -297,11 +296,11 @@ function renderDc2(pdf: PDFDocument, regular: PDFFont, bold: PDFFont, d: DC2Inpu
 
   doc.section("Renseignements généraux");
   doc.fields([
-    { label: "Dénomination sociale", value: d.candidate.denomination },
-    { label: "Forme juridique", value: d.candidate.legalForm },
-    { label: "SIREN", value: d.candidate.siren },
-    { label: "Adresse du siège", value: addressLine(d.candidate) },
-    { label: "Contact", value: [d.candidate.email, d.candidate.phone].filter(Boolean).join(" · ") },
+    { label: "Dénomination sociale", value: d.candidate?.denomination ?? "Candidat" },
+    { label: "Forme juridique", value: d.candidate?.legalForm },
+    { label: "SIREN", value: d.candidate?.siren },
+    { label: "Adresse du siège", value: addressLine(d.candidate ?? {}) },
+    { label: "Contact", value: [d.candidate?.email, d.candidate?.phone].filter(Boolean).join(" · ") },
   ]);
 
   const cap = d.capacity;

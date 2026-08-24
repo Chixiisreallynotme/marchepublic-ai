@@ -162,25 +162,23 @@ describe("lookupSirene", () => {
     expect(mockedPrisma.sireneCompany.upsert).not.toHaveBeenCalled();
   });
 
-  it("fetch depuis l'API/mock si pas en cache", async () => {
+  it("hors-ligne (test): retourne un fallback étiqueté SANS le persister", async () => {
     mockedPrisma.sireneCompany.findUnique.mockResolvedValueOnce(null);
-    const upserted = { ...SIRENE_COMPANY_FIXTURE, id: "new-sirene" };
-    mockedPrisma.sireneCompany.upsert.mockResolvedValueOnce(upserted);
 
     const result = await lookupSirene(validLookupInput);
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.siren).toBe("123456789");
+      expect(result.data.denomination).toContain("HORS-LIGNE");
     }
-    expect(mockedPrisma.sireneCompany.upsert).toHaveBeenCalled();
+    // Anti-empoisonnement: un fallback offline n'est jamais upserté en cache.
+    expect(mockedPrisma.sireneCompany.upsert).not.toHaveBeenCalled();
   });
 
-  it("retourne le cache même si expiré et met à jour en arrière-plan", async () => {
+  it("cache expiré + upstream KO: fallback offline non persisté (jamais d'upsert du placeholder)", async () => {
     const expiredCompany = { ...SIRENE_COMPANY_FIXTURE, fetchedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) };
     mockedPrisma.sireneCompany.findUnique.mockResolvedValueOnce(expiredCompany);
-    const upserted = { ...SIRENE_COMPANY_FIXTURE, fetchedAt: new Date() };
-    mockedPrisma.sireneCompany.upsert.mockResolvedValueOnce(upserted);
 
     const result = await lookupSirene(validLookupInput);
 
@@ -188,7 +186,7 @@ describe("lookupSirene", () => {
     if (result.success) {
       expect(result.data.siren).toBe("123456789");
     }
-    expect(mockedPrisma.sireneCompany.upsert).toHaveBeenCalled();
+    expect(mockedPrisma.sireneCompany.upsert).not.toHaveBeenCalled();
   });
 
   it("rejette un SIREN invalide", async () => {
