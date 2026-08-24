@@ -38,13 +38,17 @@ export function SectionEditor({
   const latest = useRef({ title, content, wordCount });
 
   useEffect(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (hasChanges || isSaving) {
+      // Frappes en vol: ne jamais écraser le travail local par la réponse réseau.
+      return;
+    }
     setTitle(section?.title || "");
     setContent(section?.content || "");
     setWordCount(section?.wordCount || 0);
-    setHasChanges(false);
     setSaveError(null);
     setLastSaved(null);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section?.id, section?.criterionId]);
 
   useEffect(() => {
@@ -98,6 +102,14 @@ export function SectionEditor({
     };
   }, []);
 
+  const handleTitleChange = useCallback(
+    (newTitle: string) => {
+      setTitle(newTitle);
+      scheduleAutosave();
+    },
+    [scheduleAutosave]
+  );
+
   const handleContentChange = useCallback(
     (newContent: string) => {
       setContent(newContent);
@@ -109,6 +121,9 @@ export function SectionEditor({
 
   const handleDelete = useCallback(async () => {
     if (!section || !onDelete) return;
+    if (!window.confirm("Supprimer cette section ? Cette action est irréversible.")) {
+      return;
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     await onDelete(section.id);
   }, [section, onDelete]);
@@ -126,7 +141,15 @@ export function SectionEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div
+      className="flex-1 flex flex-col min-w-0"
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+          e.preventDefault();
+          void persist();
+        }
+      }}
+    >
       <div className="p-4 border-b border-border bg-card/50">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">
@@ -185,9 +208,18 @@ export function SectionEditor({
                   <input
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onBlur={() => setIsEditingTitle(false)}
-                    onKeyDown={(e) => { if (e.key === "Enter") setIsEditingTitle(false); }}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    onBlur={() => {
+                      setIsEditingTitle(false);
+                      if (hasChanges) void persist();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setIsEditingTitle(false);
+                      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                        e.preventDefault();
+                        void persist();
+                      }
+                    }}
                     className="flex-1 px-2 py-1 text-lg font-semibold bg-transparent border-b border-primary focus:outline-none"
                     aria-label="Titre de la section"
                   />

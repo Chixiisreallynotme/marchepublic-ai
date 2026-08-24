@@ -251,9 +251,10 @@ export async function lookupSirene(input: LookupSireneInput): Promise<ActionResu
       );
     }
 
-    // Offline fallbacks are returned but NEVER persisted — caching a
-    // placeholder would poison the SireneCompany table as "fresh" for 7 days.
-    if (process.env.NODE_ENV !== "production" && apiResponse.denomination.startsWith("[HORS-LIGNE]") && !cached?.denomination.startsWith("[HORS-LIGNE]")) {
+    // Offline fallbacks are returned but NEVER persisted, whatever the
+    // environment or SIRENE_MOCK — caching a placeholder would poison the
+    // SireneCompany table as "fresh" for the whole cache TTL.
+    if (apiResponse.denomination.startsWith("[HORS-LIGNE]")) {
       return {
         success: true,
         data: {

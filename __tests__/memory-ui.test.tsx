@@ -221,8 +221,9 @@ describe("SectionEditor", () => {
     expect(deleteButton).toBeInTheDocument();
   });
 
-  it("appelle onDelete au clic sur supprimer", async () => {
+  it("appelle onDelete au clic sur supprimer (confirmé)", async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<SectionEditor section={mockSection} criterionTitle="Prix" onSave={vi.fn()} onDelete={onDelete} />);
 
     const deleteButton = screen.getByLabelText("Supprimer la section");

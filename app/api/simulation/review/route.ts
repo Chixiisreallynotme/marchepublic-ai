@@ -58,12 +58,17 @@ export async function POST(request: NextRequest) {
     const baseUrl = (process.env.LLM_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, "");
     const model = process.env.LLM_MODEL ?? "gpt-4o-mini";
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
       body: JSON.stringify({
         model,
         temperature: 0.3,
@@ -85,8 +90,19 @@ export async function POST(request: NextRequest) {
               .join("\n")}\n\nRésumé du mémoire:\n${memory.summary ?? "(vide)"}`,
           },
         ],
-      }),
-    });
+        }),
+      });
+    } catch (error) {
+      clearTimeout(timeout);
+      const aborted = error instanceof Error && error.name === "AbortError";
+      console.error("[simulation/review] LLM fetch failed:", error);
+      return NextResponse.json(
+        { error: aborted ? "Le fournisseur IA a mis plus de 30 s à répondre." : "Fournisseur IA injoignable." },
+        { status: 504 }
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");

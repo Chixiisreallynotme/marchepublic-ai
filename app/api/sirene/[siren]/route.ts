@@ -18,9 +18,10 @@ export async function GET(
     const result = await lookupSirene({ siren });
 
     if (!result.success) {
+      const isFormat = (result.issues?.siren?.length ?? 0) > 0 || /invalide/i.test(result.error);
       return NextResponse.json(
         { error: result.error, issues: result.issues },
-        { status: 404 }
+        { status: isFormat ? 400 : 404 }
       );
     }
 

@@ -103,8 +103,15 @@ class Doc {
   }
 }
 
+// pdf-lib standard fonts encode WinAnsi only — strip anything outside it
+// instead of failing the whole document on one exotic character.
+function sanitizeWinAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[^\u0000-\u00ff]/g, "?");
+}
+
 function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = text.split(/\s+/);
+  const words = sanitizeWinAnsi(text).split(/\s+/);
   const lines: string[] = [];
   let current = "";
   for (const word of words) {

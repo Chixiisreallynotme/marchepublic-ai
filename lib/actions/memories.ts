@@ -114,9 +114,13 @@ export async function createOrUpdateMemorySection(
     if (criterionId) {
       const criterion = await prisma.criterion.findUnique({
         where: { id: criterionId },
+        select: { tenderId: true },
       });
       if (!criterion) {
         return failure("Critère introuvable.");
+      }
+      if (criterion.tenderId !== memory.tenderId) {
+        return failure("Ce critère n'appartient pas à cet appel d'offres.");
       }
     }
 
@@ -143,9 +147,11 @@ export async function createOrUpdateMemorySection(
       return { success: true, data: updated };
     }
 
+    // Never trust client-supplied ids on create: let Prisma generate the PK.
+    const { id: _ignored, ...createRest } = rest;
     const created = await prisma.memorySection.create({
       data: {
-        ...rest,
+        ...createRest,
         content,
         wordCount,
         memoryId,
@@ -283,7 +289,7 @@ export async function updateMemoryStatus(
 
     const updated = await prisma.technicalMemory.update({
       where: { id: memoryId },
-      data: { status: parsed.data.status! },
+      data: { status: parsed.data.status },
     });
 
     return { success: true, data: updated };

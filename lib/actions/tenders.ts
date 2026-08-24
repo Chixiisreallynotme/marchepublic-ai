@@ -56,6 +56,7 @@ export async function getTenders(
     const tenders = await prisma.tender.findMany({
       where: organizationId ? { organizationId } : undefined,
       orderBy: [{ deadline: "asc" }, { createdAt: "desc" }],
+      take: 200,
       include: {
         organization: true,
         _count: { select: { criteria: true } },

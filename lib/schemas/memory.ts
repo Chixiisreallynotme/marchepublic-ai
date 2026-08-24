@@ -57,6 +57,7 @@ const sectionCoreSchema = z.object({
   title: requiredText("Le titre de la section", 3),
   content: z
     .string({ invalid_type_error: "Le contenu doit être une chaîne de caractères." })
+    .max(200_000, "Le contenu ne peut pas dépasser 200 000 caractères.")
     .default(""),
   memoryId: requiredText("L'identifiant du mémoire technique"),
   criterionId: z

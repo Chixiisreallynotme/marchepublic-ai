@@ -15,6 +15,9 @@ function isDraftId(id: string): boolean {
 export function MemoryPage({ initialData }: { initialData: MemoryData | null }) {
   const [memory, setMemory] = useState<MemoryData | null>(initialData);
   const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const [editorLastSaved, setEditorLastSaved] = useState<Date | null>(null);
+  const [editorHasChanges, setEditorHasChanges] = useState(false);
 
   const selectedCriterion =
     memory?.tender.criteria.find((c) => c.id === selectedCriterionId) || null;
@@ -60,16 +63,17 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
   const handleSaveSection = useCallback(
     async (section: Section): Promise<boolean> => {
       if (!memory) return false;
-      const payload = {
-        memoryId: memory.id,
-        criterionId: section.criterionId ?? null,
-        title: section.title,
-        content: section.content,
-        order: section.order,
-        ...(isDraftId(section.id) ? {} : { id: section.id }),
-      };
-
+      setEditorSaving(true);
       try {
+        const payload = {
+          memoryId: memory.id,
+          criterionId: section.criterionId ?? null,
+          title: section.title,
+          content: section.content,
+          order: section.order,
+          ...(isDraftId(section.id) ? {} : { id: section.id }),
+        };
+
         const response = await fetch("/api/memory/sections", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -99,10 +103,14 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
               : [...withoutDraft, { ...savedSection }],
           };
         });
+        setEditorLastSaved(new Date());
+        setEditorHasChanges(false);
         return true;
       } catch (error) {
         console.error("Erreur sauvegarde:", error);
         return false;
+      } finally {
+        setEditorSaving(false);
       }
     },
     [memory]
@@ -110,8 +118,8 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
 
   const handleDeleteSection = useCallback(async (sectionId: string) => {
     if (isDraftId(sectionId)) {
-      // Local draft: nothing persisted, just clear the editor selection.
-      setMemory((prev) => (prev ? { ...prev } : prev));
+      // Local draft: nothing persisted — clear the editor selection.
+      setSelectedCriterionId(null);
       return;
     }
     try {
@@ -186,7 +194,7 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
             </p>
           </div>
           <div className="flex items-center gap-4 flex-shrink-0">
-            <AutoSaveIndicator isSaving={false} lastSaved={null} hasChanges={false} />
+            <AutoSaveIndicator isSaving={editorSaving} lastSaved={editorLastSaved} hasChanges={editorHasChanges} />
             <select
               value={memory.status}
               onChange={(e) => {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { prismaErrorCode } from "@/lib/actions/shared";
 
 export const DEFAULT_ORG_NAME = "Mon Entreprise";
 
@@ -30,8 +31,21 @@ export async function getActiveOrganization(): Promise<ActiveOrganization> {
     };
   }
 
-  return prisma.organization.create({
-    data: { name: DEFAULT_ORG_NAME, role: "BIDDER" },
-    select: { id: true, name: true, sireneCompanyId: true },
-  });
+  try {
+    return await prisma.organization.create({
+      data: { name: DEFAULT_ORG_NAME, role: "BIDDER" },
+      select: { id: true, name: true, sireneCompanyId: true },
+    });
+  } catch (error) {
+    // Two concurrent cold-start requests can both reach the create branch;
+    // the loser re-reads the winner's row instead of failing.
+    if (prismaErrorCode(error) === "P2002") {
+      const winner = await prisma.organization.findFirst({
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, sireneCompanyId: true },
+      });
+      if (winner) return winner;
+    }
+    throw error;
+  }
 }
