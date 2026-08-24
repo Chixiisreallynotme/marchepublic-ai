@@ -35,3 +35,8 @@ Started: 2026-08-24 15:30:00
 - Landing rebuilt: gapless bento grid (border-divided ul), editorial hero 7xl serif, live DB stats strip, Reveal IO animations
 - Final verification: tsc clean | 214/214 tests | build OK | all routes 200 | Playwright screenshots landing + flows
 ---
+## US-018 fix — Bento & Reveal hardening (2026-08-24)
+- Bento spans corrected to exact fill: row1 [2+1], row2 [1+1+1] — zero empty cells
+- Reveal: SSR-visible by default, hides only when JS+IO confirm below-fold, 2.5s fallback timer (no-JS/print/anchor-jump safe)
+- Playwright fullPage screenshot verified: hero serif + honest stats + complete bento
+---
