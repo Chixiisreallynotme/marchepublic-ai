@@ -222,7 +222,14 @@ async function fetchFromInseeApi(siren: string): Promise<SireneApiResponse | nul
 }
 
 function buildOfflineFallback(siren: string): SireneApiResponse | null {
-  if (process.env.SIRENE_MOCK !== "1") return null;
+  // Explicit opt-in anywhere, or automatic convenience outside production
+  // (dev/tests must stay deterministic and network-free). Production always
+  // requires a factual registry answer — never a placeholder.
+  const mockMode = process.env.SIRENE_MOCK;
+  const allowed =
+    mockMode === "1" ||
+    (mockMode !== "0" && process.env.NODE_ENV !== "production");
+  if (!allowed) return null;
   return {
     siren,
     nic: "00001",
