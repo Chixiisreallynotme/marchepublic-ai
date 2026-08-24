@@ -35,3 +35,12 @@ Started: 2026-08-24
 - __tests__/database.test.ts: real PrismaClient via `vi.unmock("@prisma/client")` + `@vitest-environment node`, queries tenders/criteria/memory sections/CERFA/Sirene through lib/prisma singleton against dev.db
 - Verification: npx prisma db seed OK | data verified in dev.db (1 org, 1 tender, 5 criteria, 1 memory, 5 sections, 1 DC1, 1 sirene row) | npx tsc --noEmit = 0 errors | npm test = 33/33 pass | npm run build = success
 - COMPLETED: dev.db SQLite database synced via prisma db push; prisma/seed.ts created with realistic French public tender data (Novatech BTP SAS, Groupe Scolaire Jean Moulin tender, 5 weighted criteria, 5 technical memory sections, CERFA DC1, Sirene registry record); package.json wired with prisma.seed and db:seed scripts; __tests__/database.test.ts passing with 33 total tests passing across all suites; Build verified with 0 errors
+
+---
+## US-003 — Backend API: Tender & Criterion Server Actions with Zod Validation (2026-08-24)
+- Status: DONE
+- lib/schemas/tender.ts: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types
+- lib/actions/tenders.ts: Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures
+- __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing)
+- Verification: npx tsc --noEmit = 0 errors | npm test = 88/88 pass | npm run build = success
+- COMPLETED: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types; Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures; 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing); Build verified with 0 errors
