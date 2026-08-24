@@ -15,3 +15,15 @@ Started: 2026-08-24 15:30:00
 - CERFA PDFs rendered server-side with pdf-lib at GET /api/cerfa/[id]/pdf
 
 ---
+## US-007..US-016 — Production features (2026-08-24)
+- Status: DONE (10 stories)
+- lib/org.ts getActiveOrganization() kills the org-1 hardcode; memory page resolves real seeded memory
+- Sirene: ETALAB recherche-entreprises API primary (verified live with SIREN 552100554), INSEE optional, mock only behind SIRENE_MOCK=1
+- /tenders/new full DCE form + POST /api/upload (PDF/ZIP ≤25MB → public/uploads) + Tender.dceUrl column
+- CERFA: pdf-lib renderer DC1/DC2, GET /api/cerfa/[id]/pdf streams real PDFs and backfills fileUrl, legacy seed payload normalized via normalizeCerfaPayload
+- Standalone pages: /sirene (search+cache list), /cerfa hub grouped by tender, /memories weighted progress cards
+- /simulation: rule-based Σ(weight×completion) score /100 +/20, AI review panel via LLM_API_KEY env (OpenAI-compatible), setup card when key missing
+- Landing: live DB stats replace fictional ×3/+250/100%; bento gapless grid; Instrument Serif display font; Reveal IO animations with reduced-motion support
+- Legal pages: mentions-legales, confidentialite, cgu, accessibilite
+- Verification: tsc 0 errors | 214/214 vitest | next build 0 errors | all 15 routes HTTP 200 | Playwright verified memory/simulation/new pages
+---
