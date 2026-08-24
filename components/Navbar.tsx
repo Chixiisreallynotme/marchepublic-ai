@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Gavel, FileText, FileCheck2, Building2, Sparkles, Menu, X, ArrowRight, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,11 @@ function BrandMark() {
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname() ?? "/";
+
+  function isActive(href: string): boolean {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
@@ -40,9 +46,12 @@ export function Navbar() {
             <li key={href}>
               <Link
                 href={href}
+                aria-current={isActive(href) ? "page" : undefined}
                 className={cn(
-                  "rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors",
-                  "hover:bg-muted hover:text-foreground"
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive(href)
+                    ? "bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 {label}
@@ -77,7 +86,13 @@ export function Navbar() {
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-current={isActive(href) ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive(href)
+                  ? "bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
             >
               <Icon className="h-4 w-4 text-brand-500" aria-hidden="true" />
               {label}
