@@ -15,17 +15,20 @@ export function Reveal({
   as?: ElementType;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  // SSR-safe default: content is visible without JS; the reveal animation is
+  // applied only when JS confirms the element starts below the viewport.
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
+    if (typeof IntersectionObserver === "undefined") return;
 
+    const rect = node.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.9) return;
+
+    setVisible(false);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -33,11 +36,20 @@ export function Reveal({
           observer.disconnect();
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+      { threshold: 0.08, rootMargin: "0px 0px -30px 0px" }
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
+    // Safety net: never leave content hidden (print, anchor jumps, IO quirks).
+    const fallback = setTimeout(() => {
+      setVisible(true);
+      observer.disconnect();
+    }, 2500);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
+    };
   }, []);
 
   return (

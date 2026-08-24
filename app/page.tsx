@@ -34,7 +34,7 @@ const FEATURES = [
     title: "Appels d'offres",
     description:
       "Centralisez chaque consultation : échéances, lots, statuts et pièces du DCE dans un tableau de bord unique.",
-    span: "lg:col-span-2 lg:row-span-1",
+    span: "sm:col-span-2",
     accent: "from-brand-500/10 to-transparent",
   },
   {
@@ -70,7 +70,7 @@ const FEATURES = [
     title: "Simulation de score",
     description:
       "Estimez votre note pondérée avant l'envoi et identifiez les angles morts de votre réponse — scoring local, analyse IA optionnelle.",
-    span: "lg:col-span-2",
+    span: "",
     accent: "from-brand-500/10 to-transparent",
   },
 ] as const;
@@ -154,13 +154,12 @@ export default async function HomePage() {
         <Reveal>
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
             <ul className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map(({ href, icon: Icon, title, description, span, accent }, i) => (
+              {FEATURES.map(({ href, icon: Icon, title, description, span, accent }) => (
                 <li key={href} className={cn("bg-card", span)}>
                   <Link
                     href={href}
                     className={cn(
-                      "group relative flex h-full flex-col overflow-hidden p-7 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500",
-                      i === 0 && "sm:col-span-2 lg:row-span-1"
+                      "group relative flex h-full flex-col overflow-hidden p-7 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
                     )}
                   >
                     {accent && (
