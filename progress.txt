@@ -85,3 +85,18 @@ Started: 2026-08-24
 - Verification: npm test = 162/162 pass across all 7 suites | npm run build = success (0 errors)
 - COMPLETED: Technical Memory Builder UI, components, Server Actions, schemas and tests fully implemented and verified with 162 passing tests and zero build errors.
 
+---
+## US-006 — CERFA Document Generation & Sirene Company Enrichment (2026-08-24)
+- Status: DONE
+- lib/schemas/cerfa.ts: Zod validation schemas for CERFA forms (DC1, DC2, DC4, NOTI2) with discriminated union and generation schema
+- lib/schemas/sirene.ts: Zod validation schemas for SIREN/SIRET lookup and SireneCompany records
+- lib/actions/sirene.ts: lookupSirene server action with SQLite caching and fresh-data resolution
+- lib/actions/cerfa.ts: generateCerfa, getCerfaDocuments, getCerfaById server actions
+- app/api/sirene/[siren]/route.ts & app/api/cerfa/route.ts: Next.js API route handlers with structured JSON and proper HTTP status codes
+- app/tenders/[id]/cerfa/page.tsx & components/: CerfaGenerator, SireneEnricher, CerfaPreview, CerfaDocumentList, DownloadButton
+- components/ui/: Reusable UI primitives (input, label, textarea, button, card, separator, checkbox)
+- __tests__/cerfa.test.ts (27 tests) & __tests__/sirene.test.ts (22 tests): 100% pass
+- Verification: npm test = 214/214 pass across all 9 suites | npm run build = success (0 errors, all routes statically and dynamically optimized)
+- COMPLETED: CERFA document generation (DC1, DC2, DC4, NOTI2), Sirene company enrichment with caching, API endpoints, UI preview & generator, and comprehensive test suite passing 214/214 tests with 0 build errors.
+
+

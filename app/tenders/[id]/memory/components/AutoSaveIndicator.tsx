@@ -2,53 +2,21 @@
 
 import { cn } from "@/lib/utils";
 
-interface Section {
-  id: string;
-  title: string;
-  content: string;
-  wordCount: number;
-  criterionId: string | null;
-  order: number;
-}
-
-interface MemoryData {
-  id: string;
-  title: string;
-  status: "DRAFT" | "IN_REVIEW" | "SUBMITTED";
-  summary?: string | null;
-  updatedAt: string;
-  tender: {
-    id: string;
-    title: string;
-    reference: string;
-    criteria: {
-      id: string;
-      title: string;
-      description?: string | null;
-      weight: number;
-      order: number;
-      sections: { id: string }[];
-    }[];
-  };
-  sections: Section[];
-}
-
 interface AutoSaveIndicatorProps {
-  memory: MemoryData | null;
+  isSaving: boolean;
+  lastSaved: Date | null;
+  hasChanges: boolean;
 }
 
-export function AutoSaveIndicator({ memory }: AutoSaveIndicatorProps) {
-  if (!memory) {
+export function AutoSaveIndicator({ isSaving, lastSaved, hasChanges }: AutoSaveIndicatorProps) {
+  if (!lastSaved && !isSaving && !hasChanges) {
     return (
-      <div className="animate-pulse flex items-center gap-2 text-sm text-muted-foreground">
+      <div data-testid="autosave-skeleton" className="animate-pulse flex items-center gap-2 text-sm text-muted-foreground">
         <span className="h-2 w-2 rounded-full bg-muted" />
         <span className="w-24 h-4 bg-muted rounded" />
       </div>
     );
   }
-
-  const isDirty = memory.sections?.some((s) => s.content && s.content.trim().length > 0) ?? false;
-  const lastSaved = memory.updatedAt ? new Date(memory.updatedAt) : null;
 
   return (
     <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -56,11 +24,11 @@ export function AutoSaveIndicator({ memory }: AutoSaveIndicatorProps) {
         <span
           className={cn(
             "h-2 w-2 rounded-full transition-colors",
-            isDirty ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+            isSaving ? "bg-blue-500 animate-pulse" : hasChanges ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
           )}
-          aria-label={isDirty ? "Modifications non sauvegardées" : "Tout est sauvegardé"}
+          aria-label={isSaving ? "Sauvegarde en cours..." : hasChanges ? "Modifications non sauvegardées" : "Tout est sauvegardé"}
         />
-        <span>{isDirty ? "Modifications en cours..." : "Tout est sauvegardé"}</span>
+        <span>{isSaving ? "Sauvegarde en cours..." : hasChanges ? "Modifications en cours..." : "Tout est sauvegardé"}</span>
       </div>
 
       {lastSaved && (
@@ -75,13 +43,6 @@ export function AutoSaveIndicator({ memory }: AutoSaveIndicatorProps) {
       )}
 
       <div className="flex-1" />
-
-      <button
-        className="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        aria-label="Sauvegarder manuellement"
-      >
-        Sauvegarder
-      </button>
     </div>
   );
 }

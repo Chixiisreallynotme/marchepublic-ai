@@ -1,0 +1,187 @@
+"use server";
+
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import {
+  generateCerfaSchema,
+  cerfaDocumentSchema,
+  type GenerateCerfaInput,
+  type CerfaDocumentInput,
+} from "@/lib/schemas/cerfa";
+
+export type FieldIssues = Record<string, string[]>;
+
+export type ActionResult<TData> =
+  | { success: true; data: TData }
+  | { success: false; error: string; issues?: FieldIssues };
+
+type ActionFailure = { success: false; error: string; issues?: FieldIssues };
+
+export type CerfaDocumentWithRelations = {
+  id: string;
+  formNumber: string;
+  label: string | null;
+  payload: string;
+  fileUrl: string | null;
+  createdAt: Date;
+  memoryId: string;
+};
+
+const PRISMA_UNIQUE_VIOLATION = "P2002";
+const PRISMA_FOREIGN_KEY_VIOLATION = "P2003";
+const PRISMA_RECORD_NOT_FOUND = "P2025";
+
+function prismaErrorCode(error: unknown): string | null {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return null;
+}
+
+function fieldIssuesFromZodError(error: z.ZodError): FieldIssues {
+  const issues: FieldIssues = {};
+  for (const issue of error.issues) {
+    const key = issue.path.length > 0 ? issue.path.map(String).join(".") : "_form";
+    (issues[key] ??= []).push(issue.message);
+  }
+  return issues;
+}
+
+function validationFailure(error: z.ZodError): ActionFailure {
+  return {
+    success: false,
+    error: "Les données soumises sont invalides.",
+    issues: fieldIssuesFromZodError(error),
+  };
+}
+
+function failure(error: string): ActionFailure {
+  return { success: false, error };
+}
+
+function handleDbError(operationLabel: string, error: unknown): ActionFailure {
+  switch (prismaErrorCode(error)) {
+    case PRISMA_UNIQUE_VIOLATION:
+      return failure("Un document CERFA avec ces informations existe déjà.");
+    case PRISMA_FOREIGN_KEY_VIOLATION:
+      return failure(`${operationLabel} : l'entité associée n'existe pas.`);
+    case PRISMA_RECORD_NOT_FOUND:
+      return failure(`${operationLabel} : élément introuvable.`);
+    default:
+      console.error(`[actions/cerfa] ${operationLabel}`, error);
+      return failure(
+        `${operationLabel} : une erreur interne est survenue. Réessayez plus tard.`
+      );
+  }
+}
+
+export async function generateCerfa(input: GenerateCerfaInput): Promise<ActionResult<CerfaDocumentWithRelations>> {
+  try {
+    const parsed = generateCerfaSchema.safeParse(input);
+    if (!parsed.success) {
+      return validationFailure(parsed.error);
+    }
+
+    const { tenderId, memoryId, formType, payload } = parsed.data;
+
+    const memory = await prisma.technicalMemory.findUnique({
+      where: { id: memoryId },
+      include: { tender: true },
+    });
+
+    if (!memory) {
+      return failure("Mémoire technique introuvable.");
+    }
+
+    if (memory.tenderId !== tenderId) {
+      return failure("Le mémoire technique n'appartient pas à cet appel d'offres.");
+    }
+
+    const cerfaDoc = cerfaDocumentSchema.parse(payload);
+
+    const label = getFormLabel(formType);
+
+    const created = await prisma.cerfaDocument.create({
+      data: {
+        formNumber: formType,
+        label,
+        payload: JSON.stringify(cerfaDoc),
+        memoryId,
+      },
+    });
+
+    return { success: true, data: created };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationFailure(error);
+    }
+    return handleDbError("La génération du document CERFA", error);
+  }
+}
+
+export async function getCerfaDocuments(tenderId: string): Promise<ActionResult<CerfaDocumentWithRelations[]>> {
+  try {
+    if (!tenderId || tenderId.trim().length === 0) {
+      return failure("L'identifiant de l'appel d'offres est requis.");
+    }
+
+    const documents = await prisma.cerfaDocument.findMany({
+      where: {
+        memory: {
+          tenderId,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        memory: {
+          select: { id: true, tenderId: true },
+        },
+      },
+    });
+
+    return { success: true, data: documents };
+  } catch (error) {
+    return handleDbError("La récupération des documents CERFA", error);
+  }
+}
+
+export async function getCerfaById(id: string): Promise<ActionResult<CerfaDocumentWithRelations | null>> {
+  try {
+    if (!id || id.trim().length === 0) {
+      return failure("L'identifiant du document CERFA est requis.");
+    }
+
+    const document = await prisma.cerfaDocument.findUnique({
+      where: { id },
+      include: {
+        memory: {
+          select: { id: true, tenderId: true },
+        },
+      },
+    });
+
+    if (!document) {
+      return { success: true, data: null };
+    }
+
+    return { success: true, data: document };
+  } catch (error) {
+    return handleDbError("La récupération du document CERFA", error);
+  }
+}
+
+function getFormLabel(formType: string): string {
+  switch (formType) {
+    case "DC1":
+      return "Lettre de candidature (DC1 - Cerfa 11197)";
+    case "DC2":
+      return "Déclaration du candidat (DC2 - Cerfa 11207)";
+    case "DC4":
+      return "Déclaration de sous-traitance (DC4 - Cerfa 11208)";
+    case "NOTI2":
+      return "Notification de candidature (NOTI2)";
+    default:
+      return `Formulaire CERFA ${formType}`;
+  }
+}

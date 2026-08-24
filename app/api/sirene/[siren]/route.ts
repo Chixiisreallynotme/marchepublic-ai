@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from "next/server";
+import { lookupSirene, getSireneCompany } from "@/lib/actions/sirene";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ siren: string }> }
+) {
+  try {
+    const { siren } = await params;
+
+    if (!siren || siren.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Le SIREN est requis." },
+        { status: 400 }
+      );
+    }
+
+    const result = await lookupSirene({ siren });
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error, issues: result.issues },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(result.data);
+  } catch (error) {
+    console.error("[API/sirene] GET error:", error);
+    return NextResponse.json(
+      { error: "Une erreur interne est survenue." },
+      { status: 500 }
+    );
+  }
+}

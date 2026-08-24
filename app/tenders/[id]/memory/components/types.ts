@@ -4,7 +4,6 @@ export interface Criterion {
   description?: string | null;
   weight: number;
   order: number;
-  sections: { id: string; content: string; wordCount: number }[];
 }
 
 export interface Section {
@@ -13,6 +12,10 @@ export interface Section {
   content: string;
   wordCount: number;
   criterionId?: string | null;
+  criterion?: {
+    id: string;
+    title: string;
+  } | null;
   order: number;
 }
 
@@ -21,6 +24,7 @@ export interface MemoryData {
   title: string;
   status: string;
   summary?: string | null;
+  updatedAt: Date | string;
   tender: {
     id: string;
     title: string;

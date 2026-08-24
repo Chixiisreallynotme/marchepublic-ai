@@ -8,21 +8,35 @@ interface Criterion {
   title: string;
   description?: string | null;
   weight: number;
-  sections: { id: string }[];
+  order: number;
+}
+
+interface Section {
+  id: string;
+  criterionId?: string | null;
+  criterion?: {
+    id: string;
+  } | null;
 }
 
 interface CriterionSelectorSidebarProps {
   criteria: Criterion[];
+  sections?: Section[];
   selectedCriterionId: string | null;
   onSelectCriterion: (criterionId: string | null) => void;
 }
 
 export function CriterionSelectorSidebar({
   criteria,
+  sections = [],
   selectedCriterionId,
   onSelectCriterion,
 }: CriterionSelectorSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const getSectionCount = (criterionId: string) => {
+    return sections.filter(s => s.criterion?.id === criterionId || s.criterionId === criterionId).length;
+  };
 
   return (
     <aside
@@ -57,8 +71,8 @@ export function CriterionSelectorSidebar({
       <nav className="flex-1 overflow-y-auto p-3 space-y-2" role="listbox" aria-label="Liste des critères">
         {criteria.map((criterion) => {
           const isSelected = selectedCriterionId === criterion.id;
-          const hasSections = criterion.sections.length > 0;
-          const sectionCount = criterion.sections.length;
+          const sectionCount = getSectionCount(criterion.id);
+          const hasSections = sectionCount > 0;
 
           return (
             <button

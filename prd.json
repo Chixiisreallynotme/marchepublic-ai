@@ -99,8 +99,8 @@
         "Verify in browser using Playwright MCP"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "CERFA document generation (DC1, DC2, DC4, NOTI2) and Sirene enrichment fully implemented with Server Actions, API routes, UI, and 214 passing unit tests."
     }
   ]
 }
