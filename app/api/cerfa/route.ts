@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCerfa } from "@/lib/actions/cerfa";
+import { limitOr429 } from "@/lib/ratelimit";
 
 const MAX_CERFA_PAYLOAD_BYTES = 64 * 1024;
 
 export async function POST(request: NextRequest) {
+  const limited = limitOr429(request, "cerfa", 20, 60_000);
+  if (limited) return limited;
+
   try {
     const contentLength = Number(request.headers.get("content-length") ?? "0");
     if (contentLength > MAX_CERFA_PAYLOAD_BYTES) {

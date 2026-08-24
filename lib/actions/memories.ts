@@ -20,9 +20,11 @@ import type {
   TechnicalMemory,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getActiveOrganization } from "@/lib/org";
 import {
   createMemorySchema,
   createSectionSchema,
+  memoryStatusSchema,
   reorderSectionsSchema,
   updateMemorySchema,
   updateSectionSchema,
@@ -111,6 +113,11 @@ export async function createOrUpdateMemorySection(
       return failure("Mémoire technique introuvable.");
     }
 
+    const activeOrg = await getActiveOrganization();
+    if (memory.organizationId !== activeOrg.id) {
+      return failure("Ce mémoire technique n'appartient pas à votre organisation.");
+    }
+
     if (criterionId) {
       const criterion = await prisma.criterion.findUnique({
         where: { id: criterionId },
@@ -175,6 +182,10 @@ export async function reorderSections(
 
     const { sections } = parsed.data;
 
+    if (sections.length > 50) {
+      return failure("Trop de sections à réorganiser (50 maximum).");
+    }
+
     const sectionIds = sections.map((s) => s.id);
     const existingSections = await prisma.memorySection.findMany({
       where: { id: { in: sectionIds } },
@@ -220,16 +231,13 @@ export type MemoryOverviewItem = {
 
 export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>> {
   try {
-    // 3 requêtes groupées au lieu de 2N+1 (anti N+1).
-    const [memories, doneGroups, criteriaGroups] = await Promise.all([
+    // 3 requêtes groupées, progression pondérée EXACTE (poids des critères
+    // réellement complétés), pagination bornée.
+    const [memories, criteriaGroups] = await Promise.all([
       prisma.technicalMemory.findMany({
         orderBy: { updatedAt: "desc" },
+        take: 200,
         include: { tender: { select: { id: true, title: true } } },
-      }),
-      prisma.memorySection.groupBy({
-        by: ["memoryId"],
-        _count: { _all: true },
-        where: { wordCount: { gt: 0 } },
       }),
       prisma.criterion.groupBy({
         by: ["tenderId"],
@@ -238,7 +246,23 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
       }),
     ]);
 
-    const doneByMemory = new Map(doneGroups.map((g) => [g.memoryId, g._count._all]));
+    const completedWeightByMemory = new Map<string, number>();
+    const completedCriteriaByMemory = new Map<string, Set<string>>();
+    const sectionRows = await prisma.memorySection.findMany({
+      where: { wordCount: { gt: 0 }, criterionId: { not: null } },
+      select: { memoryId: true, criterionId: true, criterion: { select: { weight: true } } },
+    });
+    for (const row of sectionRows) {
+      if (!row.criterion) continue;
+      completedWeightByMemory.set(
+        row.memoryId,
+        (completedWeightByMemory.get(row.memoryId) ?? 0) + row.criterion.weight
+      );
+      const set = completedCriteriaByMemory.get(row.memoryId) ?? new Set<string>();
+      set.add(row.criterionId as string);
+      completedCriteriaByMemory.set(row.memoryId, set);
+    }
+
     const criteriaByTender = new Map(
       criteriaGroups.map((g) => [
         g.tenderId,
@@ -250,9 +274,7 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
       const criteria = criteriaByTender.get(memory.tenderId);
       const criteriaCount = criteria?.count ?? 0;
       const totalWeight = criteria?.weight ?? 0;
-      const doneWeight = totalWeight > 0 && criteriaCount > 0
-        ? (doneByMemory.get(memory.id) ?? 0) * (totalWeight / criteriaCount)
-        : 0;
+      const doneWeight = completedWeightByMemory.get(memory.id) ?? 0;
       return {
         id: memory.id,
         title: memory.title,
@@ -261,9 +283,11 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
         tenderId: memory.tender.id,
         tenderTitle: memory.tender.title,
         criteriaCount,
-        sectionsDone: doneByMemory.get(memory.id) ?? 0,
+        sectionsDone: completedCriteriaByMemory.get(memory.id)?.size ?? 0,
         totalWeightedProgress:
-          totalWeight > 0 ? Math.round((doneWeight / totalWeight) * 100) : 0,
+          totalWeight > 0
+            ? Math.min(100, Math.round((doneWeight / totalWeight) * 100))
+            : 0,
       };
     });
 
@@ -273,9 +297,11 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
   }
 }
 
+export type MemoryStatusValue = z.infer<typeof memoryStatusSchema>;
+
 export async function updateMemoryStatus(
   memoryId: string,
-  status: "DRAFT" | "IN_REVIEW" | "SUBMITTED"
+  status: MemoryStatusValue
 ): Promise<ActionResult<TechnicalMemory>> {
   try {
     if (!memoryId || memoryId.trim().length === 0) {
@@ -285,6 +311,18 @@ export async function updateMemoryStatus(
     const parsed = updateMemorySchema.safeParse({ status });
     if (!parsed.success) {
       return validationFailure(parsed.error);
+    }
+
+    const existing = await prisma.technicalMemory.findUnique({
+      where: { id: memoryId },
+      select: { organizationId: true },
+    });
+    if (!existing) {
+      return failure("Mémoire technique introuvable.");
+    }
+    const activeOrg = await getActiveOrganization();
+    if (existing.organizationId !== activeOrg.id) {
+      return failure("Ce mémoire technique n'appartient pas à votre organisation.");
     }
 
     const updated = await prisma.technicalMemory.update({

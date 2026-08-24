@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lookupSirene, getSireneCompany } from "@/lib/actions/sirene";
+import { limitOr429 } from "@/lib/ratelimit";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ siren: string }> }
 ) {
+  const limited = limitOr429(request, "sirene", 30, 60_000);
+  if (limited) return limited;
+
   try {
     const { siren } = await params;
 

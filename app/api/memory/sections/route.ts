@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createOrUpdateMemorySection } from "@/lib/actions/memories";
+import { limitOr429 } from "@/lib/ratelimit";
 
 const MAX_SECTION_PAYLOAD_BYTES = 128 * 1024;
 
 export async function POST(request: NextRequest) {
+  const limited = limitOr429(request, "sections", 60, 60_000);
+  if (limited) return limited;
+
   try {
     if (Number(request.headers.get("content-length") ?? "0") > MAX_SECTION_PAYLOAD_BYTES) {
       return NextResponse.json({ error: "Payload trop volumineux." }, { status: 413 });

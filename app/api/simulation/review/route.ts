@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { limitOr429 } from "@/lib/ratelimit";
 
 const reviewSchema = z.object({
   memoryId: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
+  const limited = limitOr429(request, "review", 5, 60_000);
+  if (limited) return limited;
+
   const apiKey = process.env.LLM_API_KEY;
 
   if (!apiKey) {

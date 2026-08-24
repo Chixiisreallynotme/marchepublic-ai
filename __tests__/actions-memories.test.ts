@@ -33,6 +33,10 @@ vi.mock("@/lib/prisma", () => ({
     criterion: {
       findUnique: vi.fn(),
     },
+    organization: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -42,6 +46,7 @@ type LoosePrisma = {
   technicalMemory: Record<"findFirst" | "findUnique" | "create" | "update", LooseFn>;
   memorySection: Record<"findMany" | "findUnique" | "create" | "update", LooseFn>;
   criterion: Record<"findUnique" | "aggregate", LooseFn>;
+  organization: Record<"findFirst" | "create", LooseFn>;
   $transaction: LooseFn;
 };
 
@@ -142,6 +147,12 @@ const validSectionInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // getActiveOrganization résout l'org active par défaut.
+  mockedPrisma.organization.findFirst.mockResolvedValue({
+    id: ORGANIZATION.id,
+    name: ORGANIZATION.name,
+    sireneCompanyId: null,
+  });
 });
 
 describe("lib/schemas/memory", () => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { limitOr429 } from "@/lib/ratelimit";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
@@ -16,6 +17,9 @@ function detectMagic(bytes: Uint8Array): "pdf" | "zip" | null {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = limitOr429(request, "upload", 10, 60_000);
+  if (limited) return limited;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");

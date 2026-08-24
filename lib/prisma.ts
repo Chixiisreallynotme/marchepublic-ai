@@ -8,6 +8,18 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
+// SQLite hardening: WAL allows concurrent readers with the single writer and
+// busy_timeout avoids immediate SQLITE_BUSY under short write contention.
+// Fire-and-forget: engines without SQLite (tests, future Postgres) ignore it.
+if (process.env.NODE_ENV !== "test") {
+  void prisma
+    .$executeRawUnsafe("PRAGMA journal_mode=WAL;")
+    .catch(() => undefined);
+  void prisma
+    .$executeRawUnsafe("PRAGMA busy_timeout=5000;")
+    .catch(() => undefined);
+}
+
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }

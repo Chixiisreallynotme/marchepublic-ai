@@ -38,21 +38,24 @@ export function StatsCards({ tenders }: { tenders?: TenderWithCounts[] }) {
   ];
 
   return (
-    <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Statistiques des appels d'offres">
+    <ul
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      aria-label="Statistiques des appels d'offres"
+    >
       {stats.map(({ label, value, icon: Icon, color }) => (
-        <div
+        <li
           key={label}
           className="rounded-2xl border border-border bg-card p-6 shadow-card"
         >
           <div className="flex items-center justify-between">
-            <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
             <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", color)}>
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
           </div>
-          <dd className="mt-4 text-3xl font-extrabold text-foreground">{value}</dd>
-        </div>
+          <p className="mt-4 text-3xl font-extrabold text-foreground tabular-nums">{value}</p>
+        </li>
       ))}
-    </dl>
+    </ul>
   );
 }
