@@ -19,7 +19,7 @@
         "npm run build completes with 0 errors"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

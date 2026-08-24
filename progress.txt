@@ -22,3 +22,4 @@ Started: 2026-08-24
 - Landing page + Navbar/Footer (data-testid hooks for tests), fr-FR metadata
 - vitest.config.ts (jsdom, globals) + __tests__/layout.test.tsx
 - Verification: npx tsc --noEmit = 0 errors | npm test = 4/4 pass | npm run build = success (static prerender, 0 errors)
+- COMPLETED: Next.js 15 App Router scaffolded with TailwindCSS and TypeScript strict; Prisma schema setup with SQLite and 7 models (Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany); Layout, Navbar, Footer components and Vitest suite passing 28/28 tests; Build verified with 0 errors
