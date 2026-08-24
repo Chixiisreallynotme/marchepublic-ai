@@ -1,14 +1,11 @@
 import { notFound } from "next/navigation";
 import { getTenderById, getTenders } from "@/lib/actions/tenders";
 import type { TenderWithCounts } from "@/lib/actions/tenders";
-import {
-  Breadcrumb,
-  StatusBadge,
-  MetadataGrid,
-  CriterionCard,
-  CriteriaSection,
-  ActionButtons,
-} from "./components";
+import { Breadcrumb } from "./components/Breadcrumb";
+import { StatusBadge } from "./components/StatusBadge";
+import { MetadataGrid } from "./components/MetadataGrid";
+import { CriteriaSection } from "./components/CriteriaSection";
+import { ActionButtons } from "./components/ActionButtons";
 
 async function TenderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -1,34 +1,6 @@
 import { Building2, Calendar, Euro, Tag, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { formatEUR, formatDate, PROCEDURE_LABELS } from "@/lib/utils";
 import type { TenderWithRelations } from "@/lib/actions/tenders";
-
-const PROCEDURE_LABELS: Record<string, string> = {
-  APPEL_OFFRES_OUVERT: "Appel d'offres ouvert",
-  APPEL_OFFRES_RESTREINT: "Appel d'offres restreint",
-  PROCEDURE_ADAPTEE: "Procédure adaptée",
-  PROCEDURE_NEGOCIEE: "Procédure négociée",
-  DIALOGUE_COMPETITIF: "Dialogue compétitif",
-  CONCOURS: "Concours",
-};
-
-function formatEUR(value: number | null | undefined): string {
-  if (!value) return "Non défini";
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(date: Date | null | undefined): string {
-  if (!date) return "Non définie";
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(date));
-}
 
 export function MetadataGrid({
   tender,

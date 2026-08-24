@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { getTenderById } from "@/lib/actions/tenders";
 import { Breadcrumb } from "./Breadcrumb";
 import { StatusBadge } from "./StatusBadge";
 import { MetadataGrid } from "./MetadataGrid";
 import { CriteriaSection } from "./CriteriaSection";
 import { ActionButtons } from "./ActionButtons";
-import { Building2, Edit3, FileText } from "lucide-react";
+import { Building2 } from "lucide-react";
 
 export async function TenderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

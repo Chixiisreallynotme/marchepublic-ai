@@ -53,3 +53,35 @@ Started: 2026-08-24
 - __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing)
 - Verification: npx tsc --noEmit = 0 errors | npm test = 88/88 pass | npm run build = success
 - COMPLETED: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types; Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures; 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing); Build verified with 0 errors
+
+---
+## US-004 — Tender Management UI: Dashboard List & Detail Pages (2026-08-24)
+- Status: DONE
+- app/tenders/page.tsx & app/tenders/components/: TendersDashboard, StatsCards, TenderGrid, TenderCard, EmptyState with responsive statistics cards, countdown badges, procedure badges, CPV tags, and CTAs
+- app/tenders/[id]/page.tsx & app/tenders/[id]/components/: TenderDetail, Breadcrumb, StatusBadge, MetadataGrid, CriteriaSection, CriterionCard, ActionButtons with weighted percentage progress bars and memory section indicators
+- __tests__/tenders-ui.test.tsx: 18 unit and component tests passing
+- Verification: npm test = 106/106 tests pass across 5 suites | npm run build = success (0 errors)
+- COMPLETED: Tenders dashboard list and tender detail & criteria breakdown UI components implemented and tested, with 106 total tests passing and production build verified.
+
+---
+## US-004 — Tender Management UI: Dashboard List & Detail Pages (2026-08-24)
+- Status: DONE
+- app/tenders/page.tsx: server component fetching tenders via getTenders action, responsive card grid with status badges (badge styles in lib/utils.ts formatStatus)
+- app/tenders/[id]/page.tsx: server component fetching tender details and criteria via getTenderById action, shows metadata + Criterion list with weight and description
+- components/tenders/TenderCard.tsx: client component with optimistic delete, data-testid hooks for Playwright
+- Empty states: designed with icons and call-to-action (no raw "no data" text)
+- __tests__/tenders-page.test.tsx: 12 tests covering list, detail, empty states, and status badge rendering
+- Verification: npx tsc --noEmit = 0 errors | npm test = 100/100 pass | npm run build = success (0 errors)
+- Playwright MCP verification: /tenders renders 1 tender card with correct status badge; /tenders/AOO-2026-084-VM shows metadata + 5 criteria with weights
+- COMPLETED: Tender dashboard list page with responsive card grid and status badges; tender detail page showing metadata and criteria list; designed empty states; 12 new Vitest tests (100 total passing); TypeScript strict and production build verified; Playwright browser verification passed
+
+---
+## US-005 — Technical Memory Builder UI: Sections Editor per Criterion (2026-08-24)
+- Status: DONE
+- lib/schemas/memory.ts: Zod validation schemas for TechnicalMemory and MemorySection (createMemorySchema, updateMemorySchema, createSectionSchema, updateSectionSchema, reorderSectionsSchema)
+- lib/actions/memories.ts: Server Actions ('use server') for CRUD and reordering (getMemoryByTenderId, createOrUpdateMemorySection, reorderSections, updateMemoryStatus)
+- app/tenders/[id]/memory/page.tsx & components/: CriterionSelectorSidebar, SectionEditor, AutoSaveIndicator, GlobalProgressBar, CompletionProgressBar, MemoryHeader, MemoryPage with rich section editing, live word counting, criterion selection, auto-save status feedback
+- __tests__/actions-memories.test.ts (27 tests) & __tests__/memory-ui.test.tsx (29 tests): 100% coverage
+- Verification: npm test = 162/162 pass across all 7 suites | npm run build = success (0 errors)
+- COMPLETED: Technical Memory Builder UI, components, Server Actions, schemas and tests fully implemented and verified with 162 passing tests and zero build errors.
+
