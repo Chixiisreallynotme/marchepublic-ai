@@ -27,6 +27,42 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const ETALAB_SEARCH_URL = "https://recherche-entreprises.api.gouv.fr/search";
 
+const FETCH_TIMEOUT_MS = 8000;
+const FETCH_RETRIES = 2;
+
+async function fetchWithResilience(
+  url: string,
+  init: RequestInit = {}
+): Promise<Response | null> {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      // Retry only on transient upstream errors, not on 4xx client errors.
+      if (response.status >= 500 || response.status === 429) {
+        lastError = new Error(`upstream ${response.status}`);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timer);
+    }
+    // Exponential backoff with jitter before the next attempt.
+    if (attempt < FETCH_RETRIES) {
+      const backoff = 300 * 2 ** attempt + Math.floor(Math.random() * 150);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+    }
+  }
+
+  console.warn("[Sirene] fetch exhausted retries:", lastError);
+  return null;
+}
+
 function prismaErrorCode(error: unknown): string | null {
   if (typeof error === "object" && error !== null && "code" in error) {
     const code = (error as { code?: unknown }).code;
@@ -119,16 +155,13 @@ function mapEtalabResult(result: EtalabResult): SireneApiResponse | null {
 
 async function fetchFromEtalab(siren: string): Promise<SireneApiResponse | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithResilience(
       `${ETALAB_SEARCH_URL}?q=${encodeURIComponent(siren)}&page=1&per_page=1`,
-      {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 3600 },
-      }
+      { headers: { Accept: "application/json" }, next: { revalidate: 3600 } }
     );
 
-    if (!response.ok) {
-      console.warn(`[Sirene] ETALAB API error: ${response.status}`);
+    if (!response || !response.ok) {
+      console.warn(`[Sirene] ETALAB API error: ${response?.status ?? "no response"}`);
       return null;
     }
 
@@ -148,7 +181,7 @@ async function fetchFromInseeApi(siren: string): Promise<SireneApiResponse | nul
     const token = process.env.INSEE_API_TOKEN;
     if (!token) return null;
 
-    const response = await fetch(
+    const response = await fetchWithResilience(
       `https://api.insee.fr/entreprises/sirene/V3/siren/${siren}`,
       {
         headers: {
@@ -159,9 +192,9 @@ async function fetchFromInseeApi(siren: string): Promise<SireneApiResponse | nul
       }
     );
 
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      console.warn(`[Sirene] INSEE API error: ${response.status}`);
+    if (!response || !response.ok) {
+      if (response?.status === 404) return null;
+      console.warn(`[Sirene] INSEE API error: ${response?.status ?? "no response"}`);
       return null;
     }
 

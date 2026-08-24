@@ -14,3 +14,8 @@ next-env.d.ts
 # misc
 .DS_Store
 *.tsbuildinfo
+
+# Perfection loop artifacts
+.perfection/
+.playwright-mcp/
+PERFECTION_PROGRESS.md

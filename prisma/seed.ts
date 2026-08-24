@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting database seed...");
+  console.log("[seed] Starting database seed...");
 
   // 1. Create Organization
   const organization = await prisma.organization.upsert({
@@ -20,7 +20,7 @@ async function main() {
       postalCode: "69002",
     },
   });
-  console.log("✅ Organization created:", organization.name);
+  console.log("[ok] Organization created:", organization.name);
 
   // 2. Create Tender
   const tender = await prisma.tender.upsert({
@@ -49,7 +49,7 @@ Le marché comprend :
       organizationId: organization.id,
     },
   });
-  console.log("✅ Tender created:", tender.title);
+  console.log("[ok] Tender created:", tender.title);
 
   // 3. Create 5 Criteria
   const criteriaData = [
@@ -99,7 +99,7 @@ Le marché comprend :
         tenderId: tender.id,
       },
     });
-    console.log(`✅ Criterion created: ${criterion.title} (${criterion.weight}%)`);
+    console.log(`[ok] Criterion created: ${criterion.title} (${criterion.weight}%)`);
   }
 
   // 4. Create TechnicalMemory with 5 MemorySections
@@ -115,7 +115,7 @@ Le marché comprend :
       organizationId: organization.id,
     },
   });
-  console.log("✅ TechnicalMemory created:", memory.title);
+  console.log("[ok] TechnicalMemory created:", memory.title);
 
   // Get criteria for linking sections
   const criteria = await prisma.criterion.findMany({
@@ -235,14 +235,14 @@ Novatech BTP SAS propose un phasage en 4 tranches principales sur 18 mois, calé
       content: `PLANNING DÉTAILLÉ - 18 MOIS EN SITE OCCUPÉ (JANVIER 2025 - JUIN 2026)
 
 4.1 JALONS MAJEURS ALIGNÉS CALENDRIER SCOLAIRE
-☑ Janv 2025 : Installation chantier, cloisonnements, diagnostics amiante/plomb (pré-DA)
-☑ Fév-Mars 2025 : Tranche 1 - Aile Nord (vacances hiver + 2 semaines rentrée)
-☑ Avr-Mai 2025 : Tranche 2 - Aile Sud (vacances printemps)
-☑ Juin-Juill 2025 : Tranche 3 - Parties communes (grandes vacances - fenêtre optimale 8 sem.)
-☑ Sept-Nov 2025 : Tranche 4 - Toitures + VMC (vacances Toussaint)
-☑ Déc 2025-Janv 2026 : Second œuvre, menuiseries, CVC
-☑ Fév-Mars 2026 : Finitions, essais, mise en service
-☑ Avr-Juin 2026 : Levée réserves, réception, DOE, formation exploitant
+- [DONE] Janv 2025 : Installation chantier, cloisonnements, diagnostics amiante/plomb (pré-DA)
+- [DONE] Fév-Mars 2025 : Tranche 1 - Aile Nord (vacances hiver + 2 semaines rentrée)
+- [DONE] Avr-Mai 2025 : Tranche 2 - Aile Sud (vacances printemps)
+- [DONE] Juin-Juill 2025 : Tranche 3 - Parties communes (grandes vacances - fenêtre optimale 8 sem.)
+- [DONE] Sept-Nov 2025 : Tranche 4 - Toitures + VMC (vacances Toussaint)
+- [DONE] Déc 2025-Janv 2026 : Second œuvre, menuiseries, CVC
+- [DONE] Fév-Mars 2026 : Finitions, essais, mise en service
+- [DONE] Avr-Juin 2026 : Levée réserves, réception, DOE, formation exploitant
 
 4.2 CONTRAINTES SPÉCIFIQUES INTÉGRÉES
 - Interdiction travaux bruyants : 12h-13h30 (sieste maternelle) + 16h-18h (sortie classes)
@@ -305,7 +305,7 @@ TOTAL HT : 847 500 €  (Marge nette 8,2% après charges de chantier)
       update: {},
       create: section,
     });
-    console.log(`✅ MemorySection created: ${section.title}`);
+    console.log(`[ok] MemorySection created: ${section.title}`);
   }
 
   // 6. Create CerfaDocument (DC1)
@@ -429,7 +429,7 @@ TOTAL HT : 847 500 €  (Marge nette 8,2% après charges de chantier)
       memoryId: memory.id,
     },
   });
-  console.log("✅ CerfaDocument (DC1) created:", cerfa.formNumber);
+  console.log("[ok] CerfaDocument (DC1) created:", cerfa.formNumber);
 
   // 7. Create SireneCompany record
   const sireneCompany = await prisma.sireneCompany.upsert({
@@ -448,16 +448,16 @@ TOTAL HT : 847 500 €  (Marge nette 8,2% après charges de chantier)
       fetchedAt: new Date(),
     },
   });
-  console.log("✅ SireneCompany created:", sireneCompany.denomination);
+  console.log("[ok] SireneCompany created:", sireneCompany.denomination);
 
   // Link organization to SireneCompany
   await prisma.organization.update({
     where: { id: organization.id },
     data: { sireneCompanyId: sireneCompany.id },
   });
-  console.log("✅ Organization linked to SireneCompany");
+  console.log("[ok] Organization linked to SireneCompany");
 
-  console.log("\n🎉 Seed completed successfully!");
+  console.log("\nSeed completed successfully!");
   console.log(`
 Summary:
 - 1 Organization: ${organization.name}
@@ -471,7 +471,7 @@ Summary:
 
 main()
   .catch((e) => {
-    console.error("❌ Seed failed:", e);
+    console.error("[seed] FAILED:", e);
     process.exit(1);
   })
   .finally(async () => {
