@@ -71,6 +71,7 @@ function tenderFixture(overrides: Partial<TenderRow> = {}): TenderRow {
     cpvCode: "34992100-1",
     buyerName: "Métropole de Lyon",
     estimatedValue: 120000,
+    dceUrl: null,
     publicationDate: null,
     deadline: new Date("2026-11-30T17:00:00.000Z"),
     createdAt: new Date("2026-08-20T08:00:00.000Z"),

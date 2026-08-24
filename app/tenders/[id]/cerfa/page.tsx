@@ -50,8 +50,8 @@ async function CerfaContent({ tenderId, memoryId, documents }: { tenderId: strin
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
-          <CerfaGenerator tenderId={tenderId} memoryId={memoryId} onGenerate={() => {}} />
-          <SireneEnricher onCompanySelect={() => {}} />
+          <CerfaGenerator tenderId={tenderId} memoryId={memoryId} />
+          <SireneEnricher />
         </div>
         <div className="lg:col-span-2">
           <CerfaPreview documents={documents} />

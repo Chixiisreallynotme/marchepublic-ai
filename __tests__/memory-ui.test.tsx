@@ -133,7 +133,7 @@ describe("CriterionSelectorSidebar", () => {
 
 describe("SectionEditor", () => {
   it("affiche l'état vide quand aucune section n'est fournie", () => {
-    render(<SectionEditor section={null} criterionTitle={null} onSave={vi.fn()} isSaving={false} lastSaved={null} />);
+    render(<SectionEditor section={null} criterionTitle={undefined} onSave={vi.fn()} isSaving={false} lastSaved={null} />);
 
     expect(screen.getByText("Sélectionnez un critère pour commencer")).toBeInTheDocument();
     expect(screen.getByText("Les sections sont automatiquement liées aux critères d'évaluation.")).toBeInTheDocument();

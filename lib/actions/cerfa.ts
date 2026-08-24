@@ -8,6 +8,7 @@ import {
   type GenerateCerfaInput,
   type CerfaDocumentInput,
 } from "@/lib/schemas/cerfa";
+import { buildPrefillPayload } from "@/lib/cerfa/prefill";
 
 export type FieldIssues = Record<string, string[]>;
 
@@ -168,6 +169,58 @@ export async function getCerfaById(id: string): Promise<ActionResult<CerfaDocume
     return { success: true, data: document };
   } catch (error) {
     return handleDbError("La récupération du document CERFA", error);
+  }
+}
+
+export async function generateCerfaPrefilled(
+  tenderId: string,
+  memoryId: string,
+  formType: "DC1" | "DC2"
+): Promise<ActionResult<CerfaDocumentWithRelations>> {
+  try {
+    if (!tenderId || !memoryId) {
+      return failure("L'appel d'offres et le mémoire technique sont requis.");
+    }
+
+    const tender = await prisma.tender.findUnique({ where: { id: tenderId } });
+    if (!tender) return failure("Appel d'offres introuvable.");
+
+    const organization = await prisma.organization.findUnique({
+      where: { id: tender.organizationId },
+      include: { sireneCompany: true },
+    });
+    if (!organization) return failure("Organisation introuvable.");
+
+    const payload = buildPrefillPayload({
+      formType,
+      tender,
+      org: organization,
+      sirene: organization.sireneCompany,
+    });
+
+    return generateCerfa({ tenderId, memoryId, formType, payload } satisfies GenerateCerfaInput);
+  } catch (error) {
+    return handleDbError("La génération pré-remplie du document CERFA", error);
+  }
+}
+
+export type CerfaDocumentWithTender = CerfaDocumentWithRelations & {
+  memory: { id: string; tenderId: string };
+};
+
+export async function listAllCerfaDocuments(): Promise<
+  ActionResult<CerfaDocumentWithTender[]>
+> {
+  try {
+    const documents = await prisma.cerfaDocument.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        memory: { select: { id: true, tenderId: true } },
+      },
+    });
+    return { success: true, data: documents };
+  } catch (error) {
+    return handleDbError("La liste des documents CERFA", error);
   }
 }
 

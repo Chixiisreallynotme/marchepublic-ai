@@ -45,6 +45,8 @@ model Tender {
   cpvCode        String?
   buyerName      String?
   estimatedValue Float?
+  /// URL of the uploaded DCE document (PDF) served from /uploads
+  dceUrl String?
   publicationDate DateTime?
   deadline       DateTime?
   createdAt      DateTime  @default(now())

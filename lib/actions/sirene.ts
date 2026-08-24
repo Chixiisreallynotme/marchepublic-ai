@@ -25,6 +25,8 @@ const PRISMA_RECORD_NOT_FOUND = "P2025";
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+const ETALAB_SEARCH_URL = "https://recherche-entreprises.api.gouv.fr/search";
+
 function prismaErrorCode(error: unknown): string | null {
   if (typeof error === "object" && error !== null && "code" in error) {
     const code = (error as { code?: unknown }).code;
@@ -74,28 +76,84 @@ function isCacheFresh(fetchedAt: Date): boolean {
   return Date.now() - fetchedAt.getTime() < CACHE_TTL_MS;
 }
 
-function buildMockSireneCompany(siren: string): SireneApiResponse {
-  const denomination = `ENTREPRISE ${siren.slice(-3)} SAS`;
+interface EtalabResult {
+  siren?: string;
+  nom_complet?: string;
+  denomination?: string;
+  categorie_juridique?: string;
+  activite_principale?: string;
+  siege?: {
+    siret?: string;
+    numero_voie?: string;
+    type_voie?: string;
+    libelle_voie?: string;
+    code_postal?: string;
+    libelle_commune?: string;
+    activite_principale?: string;
+  };
+}
+
+export function mapEtalabResult(result: EtalabResult): SireneApiResponse | null {
+  const siren = result.siren;
+  if (!siren) return null;
+
+  const siege = result.siege ?? {};
+  const addressParts = [
+    siege.numero_voie,
+    siege.type_voie,
+    siege.libelle_voie,
+  ].filter((part): part is string => Boolean(part && part.trim().length > 0));
+
   return {
     siren,
-    nic: "00001",
-    denomination,
-    legalForm: "SAS",
-    activityCode: "4299Z",
-    address: "1 Rue de l'Exemple",
-    postalCode: "75001",
-    city: "Paris",
+    nic: siege.siret ? siege.siret.slice(-5) : undefined,
+    denomination:
+      result.denomination ?? result.nom_complet ?? `Entreprise ${siren}`,
+    legalForm: result.categorie_juridique,
+    activityCode: result.activite_principale ?? siege.activite_principale,
+    address: addressParts.length > 0 ? addressParts.join(" ") : undefined,
+    postalCode: siege.code_postal,
+    city: siege.libelle_commune,
   };
+}
+
+async function fetchFromEtalab(siren: string): Promise<SireneApiResponse | null> {
+  try {
+    const response = await fetch(
+      `${ETALAB_SEARCH_URL}?q=${encodeURIComponent(siren)}&page=1&per_page=1`,
+      {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 3600 },
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`[Sirene] ETALAB API error: ${response.status}`);
+      return null;
+    }
+
+    const data = (await response.json()) as { results?: EtalabResult[] };
+    const first = data.results?.[0];
+    if (!first) return null;
+
+    return mapEtalabResult(first);
+  } catch (error) {
+    console.warn("[Sirene] ETALAB fetch failed:", error);
+    return null;
+  }
 }
 
 async function fetchFromInseeApi(siren: string): Promise<SireneApiResponse | null> {
   try {
+    const token = process.env.INSEE_API_TOKEN;
+    if (!token) return null;
+
     const response = await fetch(
       `https://api.insee.fr/entreprises/sirene/V3/siren/${siren}`,
       {
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         next: { revalidate: 3600 },
       }
@@ -130,6 +188,20 @@ async function fetchFromInseeApi(siren: string): Promise<SireneApiResponse | nul
   }
 }
 
+function buildOfflineFallback(siren: string): SireneApiResponse | null {
+  if (process.env.SIRENE_MOCK !== "1") return null;
+  return {
+    siren,
+    nic: "00001",
+    denomination: `[HORS-LIGNE] Entreprise ${siren.slice(-3)}`,
+    legalForm: "INCONNU",
+    activityCode: undefined,
+    address: undefined,
+    postalCode: undefined,
+    city: undefined,
+  };
+}
+
 function mapToSireneCompany(apiResponse: SireneApiResponse): SireneCompany {
   return sireneCompanySchema.parse({
     ...apiResponse,
@@ -154,19 +226,15 @@ export async function lookupSirene(input: LookupSireneInput): Promise<ActionResu
       return { success: true, data: cached };
     }
 
-    let apiResponse: SireneApiResponse | null = null;
-
-    if (process.env.NODE_ENV === "development" || !process.env.INSEE_API_TOKEN) {
-      apiResponse = buildMockSireneCompany(siren);
-    } else {
-      apiResponse = await fetchFromInseeApi(siren);
-      if (!apiResponse) {
-        apiResponse = buildMockSireneCompany(siren);
-      }
-    }
+    let apiResponse =
+      (await fetchFromEtalab(siren)) ??
+      (await fetchFromInseeApi(siren)) ??
+      buildOfflineFallback(siren);
 
     if (!apiResponse) {
-      return failure("Entreprise introuvable dans le registre Sirene.");
+      return failure(
+        "Entreprise introuvable dans le registre Sirene (recherche-entreprises.api.gouv.fr)."
+      );
     }
 
     const companyData = mapToSireneCompany(apiResponse);
@@ -201,5 +269,19 @@ export async function getSireneCompany(siren: string): Promise<ActionResult<Sire
     return { success: true, data: company };
   } catch (error) {
     return handleDbError("La récupération de l'entreprise Sirene", error);
+  }
+}
+
+export async function listCachedSireneCompanies(limit = 12): Promise<
+  ActionResult<SireneCompany[]>
+> {
+  try {
+    const companies = await prisma.sireneCompany.findMany({
+      orderBy: { fetchedAt: "desc" },
+      take: limit,
+    });
+    return { success: true, data: companies };
+  } catch (error) {
+    return handleDbError("La liste des entreprises Sirene", error);
   }
 }

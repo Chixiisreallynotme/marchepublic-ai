@@ -1,106 +1,206 @@
 {
-  "project": "MarchePublic AI",
-  "branchName": "ralph/marchepublic-ai-foundation",
-  "description": "AI-assisted platform for French public procurement (marchés publics): manage tenders (appel d'offres), build technical memories (mémoires techniques) against selection criteria, generate CERFA documents and enrich responses with Sirene company data.",
+  "project": "MarchePublic AI — Production & GAFAM UI",
+  "branchName": "ralph/marchepublic-prod-gafam",
+  "description": "P2: replace every mock/fictional element with working production features (real Sirene ETALAB, real CERFA PDF, complete tender creation with DCE upload, functional standalone pages /memories /cerfa-global /sirene /simulation with rule-based + AI-ready scoring) and elevate UI/UX to Stripe/Linear-grade design system.",
   "userStories": [
     {
-      "id": "US-001",
-      "title": "Project Foundation: Next.js 15 App Router + Prisma Schema + Base Layout",
-      "description": "As a developer, I want the Next.js 15 App Router project scaffolded with TypeScript, Tailwind CSS, Prisma/SQLite schema and a sleek base layout so that all subsequent stories build on a stable foundation.",
+      "id": "US-007",
+      "title": "Mono-tenant organization resolver (kill org-1 bug)",
+      "description": "As a bidder, I want a single source of truth for the active organization so that memory pages resolve real data instead of the hardcoded 'org-1'.",
       "acceptanceCriteria": [
-        "package.json, tsconfig.json, tailwind.config.ts, postcss.config.mjs and next.config.ts exist with valid configuration",
-        "Dependencies installed: next, react, react-dom, typescript, tailwindcss, @types/node, @types/react, @types/react-dom, lucide-react, clsx, tailwind-merge, zod, vitest, @testing-library/react, @testing-library/jest-dom, jsdom, prisma, @prisma/client",
-        "prisma/schema.prisma defines SQLite datasource with models: Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany",
-        "lib/prisma.ts exports a singleton PrismaClient and lib/utils.ts exports cn() helper",
-        "app/layout.tsx, app/globals.css, app/page.tsx render a modern landing page with components/Navbar.tsx and components/Footer.tsx using Tailwind styling",
-        "__tests__/layout.test.tsx passes under vitest",
+        "lib/org.ts exports getActiveOrganization() returning the seeded BIDDER organization (auto-create default if DB empty)",
+        "app/tenders/[id]/memory/page.tsx uses getActiveOrganization() — no hardcoded ids",
+        "/tenders/[id]/memory renders the seeded memory for tender-renovation-scolaire-lyon",
         "Typecheck passes",
-        "Tests pass",
-        "npm run build completes with 0 errors"
+        "Tests pass"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
-      "id": "US-002",
-      "title": "Database Layer: Prisma Migrations & Seed Data",
-      "description": "As a developer, I want Prisma migrations applied to SQLite and seed data for organizations, tenders and criteria so that the app has realistic data to develop against.",
+      "id": "US-008",
+      "title": "Real Sirene via ETALAB recherche-entreprises API",
+      "description": "As a bidder, I want real company data from the official open registry so that enrichment is factual.",
       "acceptanceCriteria": [
-        "prisma migrate dev runs successfully creating dev.db",
-        "prisma/seed.ts inserts at least one Organization, one Tender with Criteria and one TechnicalMemory with MemorySections",
-        "Seed is wired into package.json via prisma.seed config",
-        "npx prisma studio opens the database without errors",
-        "Typecheck passes",
-        "Tests pass"
+        "lib/actions/sirene.ts queries https://recherche-entreprises.api.gouv.fr/search?q=<siren> and maps siege fields to SireneCompany",
+        "buildMockSireneCompany removed from prod path (only used when SIRENE_MOCK=1)",
+        "INSEE token path kept as optional fallback when INSEE_API_TOKEN set",
+        "curl /api/sirene/552100554 returns real Siemens France data (or factual ETALAB record)",
+        "Unit test covers mapping of ETALAB payload",
+        "Typecheck passes"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
-      "id": "US-003",
-      "title": "Backend API: Tender & Criterion Server Actions with Zod Validation",
-      "description": "As an API consumer, I want typed server actions to list, create, update and delete tenders and criteria with Zod validation so that the UI has a safe data access layer.",
+      "id": "US-009",
+      "title": "Standalone /sirene search page",
+      "description": "As a user, I want a global Sirene lookup page so navbar link works.",
       "acceptanceCriteria": [
-        "lib/actions/tenders.ts exposes CRUD server actions validated with zod schemas from lib/schemas/tender.ts",
-        "Invalid payloads return structured error objects instead of throwing",
-        "Unit tests cover happy path and validation failure cases",
-        "Typecheck passes",
-        "Tests pass"
+        "/sirene page renders search input reusing SireneEnricher logic",
+        "Recent cached companies listed below (from SQLite)",
+        "Empty + error states designed",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
       ],
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
-      "id": "US-004",
-      "title": "Tender Management UI: Dashboard List & Detail Pages",
-      "description": "As a bidder, I want a dashboard listing my tenders with status badges and a detail page per tender showing its criteria so that I can track every appel d'offres in one place.",
+      "id": "US-010",
+      "title": "Complete /tenders/new form with DCE upload",
+      "description": "As a bidder, I want to create a tender with full DCE metadata and attach the DCE file.",
       "acceptanceCriteria": [
-        "/tenders lists tenders fetched via server actions with responsive card grid styling",
-        "/tenders/[id] shows tender metadata and its Criterion list",
-        "Empty states are designed (no raw 'no data' text)",
-        "Typecheck passes",
-        "Tests pass",
-        "Verify in browser using Playwright MCP"
+        "Tender.dceUrl column added via prisma db push",
+        "POST /api/upload stores DCE under public/uploads and returns url",
+        "/tenders/new form: title, reference, buyerName, procedureType, cpvCode, estimatedValue, publicationDate, deadline, description, DCE file upload",
+        "Zod validation surfaces field errors inline; success redirects to /tenders/[id]",
+        "Dashboard 'Nouvel appel d'offres' button no longer 404s",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
       ],
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "notes": ""
     },
     {
-      "id": "US-005",
-      "title": "Technical Memory Builder UI: Sections Editor per Criterion",
-      "description": "As a bidder, I want an editor to draft MemorySection content answering each Tender criterion inside a TechnicalMemory so that I can compose my mémoire technique section by section.",
+      "id": "US-011",
+      "title": "CERFA PDF generation (DC1+DC2) with pdf-lib",
+      "description": "As a bidder, I want printable DC1/DC2 PDFs prefilled from Sirene identity.",
       "acceptanceCriteria": [
-        "/tenders/[id]/memory lets me create/edit/reorder MemorySections mapped to criteria",
-        "Section editor persists drafts via server actions with optimistic UI feedback",
-        "Word count per section is displayed",
-        "Typecheck passes",
-        "Tests pass",
-        "Verify in browser using Playwright MCP"
+        "pdf-lib installed; lib/cerfa/pdf.ts renders DC1 and DC2 A4 layouts from payload",
+        "GET /api/cerfa/[id]/pdf streams application/pdf and sets fileUrl on the record",
+        "CerfaGenerator becomes functional: form-type select + prefill from org/Sirene + generate action",
+        "CerfaPreview download buttons fetch the PDF endpoint",
+        "Generated DC1 PDF opens with real Novatech identity fields",
+        "Typecheck passes"
       ],
       "priority": 5,
-      "passes": true,
-      "notes": "Technical Memory Builder UI and actions implemented and verified with 162 passing tests."
+      "passes": false,
+      "notes": ""
     },
     {
-      "id": "US-006",
-      "title": "CERFA Document Generation & Sirene Company Enrichment",
-      "description": "As a bidder, I want to generate a CerfaDocument from my completed TechnicalMemory and auto-fill company identity from the SireneCompany registry so that administrative forms are produced without manual retyping.",
+      "id": "US-012",
+      "title": "Global CERFA hub page /cerfa",
+      "description": "As a user, I want an overview of all generated CERFA documents so navbar link works.",
       "acceptanceCriteria": [
-        "POST /api/cerfa generates a CerfaDocument record linked to a TechnicalMemory and returns a downloadable document",
-        "Sirene lookup endpoint resolves a SIREN into a SireneCompany record cached in SQLite",
-        "Generated document includes organization identity fields sourced from Sirene data",
-        "API errors return proper HTTP status codes with JSON bodies",
-        "Typecheck passes",
-        "Tests pass",
-        "Verify in browser using Playwright MCP"
+        "Server action lists all CerfaDocuments grouped by tender",
+        "/cerfa renders grouped list with links to per-tender generator",
+        "Designed empty state when none",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
       ],
       "priority": 6,
-      "passes": true,
-      "notes": "CERFA document generation (DC1, DC2, DC4, NOTI2) and Sirene enrichment fully implemented with Server Actions, API routes, UI, and 214 passing unit tests."
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Memories overview page /memories",
+      "description": "As a bidder, I want all my technical memories with progress in one place.",
+      "acceptanceCriteria": [
+        "listMemories() server action returns memories with tender + completion stats",
+        "/memories renders cards with weighted progress bars linking to editors",
+        "Designed empty state",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Simulation page with weighted scoring + optional AI review",
+      "description": "As a bidder, I want to estimate my score before submission, with optional LLM feedback.",
+      "acceptanceCriteria": [
+        "lib/simulation.ts computes Σ(weight × sectionCompletion) per criterion and global score /20 + /100",
+        "/simulation lets me pick a tender/memory and shows criterion-by-criterion breakdown chart (pure CSS bars)",
+        "AI panel: POST /api/simulation/review uses env LLM_API_KEY + LLM_BASE_URL (OpenAI-compatible); without key shows setup instructions card asking for the API key",
+        "No fake scores anywhere; empty state guides to create a memory",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Honest landing stats from live database",
+      "description": "As a visitor, I want real platform numbers instead of fictional marketing stats.",
+      "acceptanceCriteria": [
+        "Hero STATS computed from DB: tenders count, criteria analyzed total, documents generated count",
+        "Fictional ×3/+250/100% removed",
+        "Stats degrade gracefully to 0s on fresh DB",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Legal pages (mentions-legales, confidentialite, cgu, accessibilite)",
+      "description": "As a visitor, footer legal links must resolve.",
+      "acceptanceCriteria": [
+        "Four static pages created with structured French legal content templates",
+        "Footer links no longer 404",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Design tokens upgrade — Stripe/Linear direction",
+      "description": "As a user, I want a premium typographic system and refined palette.",
+      "acceptanceCriteria": [
+        "Instrument Serif display font added via next/font (--font-display) for headlines",
+        "Refined brand scale + neutral ramp; elevated shadows; container max-w-7xl",
+        "Dark mode tokens completed (.dark) and toggle-free auto support",
+        "globals.css component classes refactored (btn-primary hover lift, focus rings)",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Landing rebuild — bento gapless grid + editorial hero",
+      "description": "As a visitor, I want a GAFAM-grade landing.",
+      "acceptanceCriteria": [
+        "Hero: oversized serif headline, badge, dual CTAs, live stats strip",
+        "Features as gapless bento grid (asymmetric spans, inline SVG micro-illustrations, hover reveals)",
+        "Scroll-reveal via IntersectionObserver Reveal component (60fps transform/opacity only, prefers-reduced-motion respected)",
+        "No template look: varied composition, second-read moments",
+        "Verify in browser using Playwright MCP",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Dashboard & detail polish + final QA sweep",
+      "description": "As a user, I want consistent premium quality across app pages.",
+      "acceptanceCriteria": [
+        "/tenders: status filter tabs, deadline countdown badges, refined stat cards",
+        "Navbar active-link states; consistent page headers across routes",
+        "All routes return 200: / /tenders /tenders/new /tenders/[id] /[id]/memory /[id]/cerfa /memories /cerfa /sirene /simulation + 4 legal pages",
+        "npm run build 0 errors; full vitest suite green",
+        "Playwright screenshot pass on landing + dashboard",
+        "Verify in browser using Playwright MCP"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
     }
   ]
 }

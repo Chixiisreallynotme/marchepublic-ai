@@ -1,0 +1,102 @@
+# Ralph Progress Log
+Started: 2026-08-24
+---
+
+## Codebase Patterns
+
+- Framework: Next.js 15 App Router + TypeScript (strict)
+- Styling: Tailwind CSS with `cn()` helper from lib/utils.ts (clsx + tailwind-merge)
+- Database: Prisma ORM over SQLite (`prisma/schema.prisma`, singleton client in lib/prisma.ts)
+- Validation: Zod schemas colocated under lib/schemas/
+- Testing: Vitest + @testing-library/react + jsdom, tests live in `__tests__/`
+- Components: server components by default; client components only where interactivity requires ("use client")
+- Naming: PascalCase components in components/, kebab-case routes in app/
+
+---
+## US-001 — Project Foundation (2026-08-24)
+- Status: DONE
+- Next.js 15.5 + React 19 scaffolded (App Router, strict TS, Tailwind v3, path alias @/*)
+- All required deps installed (+ autoprefixer/postcss needed by Tailwind v3 PostCSS setup)
+- prisma/schema.prisma: SQLite datasource; models Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany — `prisma validate` OK, client generated
+- lib/prisma.ts singleton, lib/utils.ts (cn/formatDate/formatAmount)
+- Landing page + Navbar/Footer (data-testid hooks for tests), fr-FR metadata
+- vitest.config.ts (jsdom, globals) + __tests__/layout.test.tsx
+- Verification: npx tsc --noEmit = 0 errors | npm test = 4/4 pass | npm run build = success (static prerender, 0 errors)
+- COMPLETED: Next.js 15 App Router scaffolded with TailwindCSS and TypeScript strict; Prisma schema setup with SQLite and 7 models (Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany); Layout, Navbar, Footer components and Vitest suite passing 28/28 tests; Build verified with 0 errors
+
+---
+## US-002 — Database Layer: Prisma Migrations & Seed Data (2026-08-24)
+- Status: DONE
+- `npx prisma db push` applied → prisma/dev.db created (SQLite, 7 tables); added Tender.cpvCode column for CPV codes (45261210-9)
+- tsx installed as devDependency; package.json wired: `prisma.seed = "npx tsx prisma/seed.ts"` + `db:seed` script
+- prisma/seed.ts (idempotent reset + insert): Novatech BTP SAS (SIREN 834928192) linked to a realistic SireneCompany record (NAF 43.29A, SAS, Lyon 3e); tender AOO-2026-084-VM "Rénovation énergétique et isolation thermique du Groupe Scolaire Jean Moulin - Ville de Lyon" (850 000 €, deadline 15/09/2026, CPV 45261210-9, Ville de Lyon buyer)
+- 5 weighted criteria (40/20/15/15/10 = 100 %): Méthodologie d'exécution, Moyens humains et encadrement, Démarche environnementale et RSE, Planning et phasage en site occupé, Prix des prestations
+- TechnicalMemory IN_REVIEW with 5 detailed MemorySections answering each criterion point-by-point (word counts computed), plus pre-filled CERFA DC1 payload (cerfa n°11197*05, représentante légale, engagements, signature électronique)
+- __tests__/database.test.ts: real PrismaClient via `vi.unmock("@prisma/client")` + `@vitest-environment node`, queries tenders/criteria/memory sections/CERFA/Sirene through lib/prisma singleton against dev.db
+- Verification: npx prisma db seed OK | data verified in dev.db (1 org, 1 tender, 5 criteria, 1 memory, 5 sections, 1 DC1, 1 sirene row) | npx tsc --noEmit = 0 errors | npm test = 33/33 pass | npm run build = success
+- COMPLETED: dev.db SQLite database synced via prisma db push; prisma/seed.ts created with realistic French public tender data (Novatech BTP SAS, Groupe Scolaire Jean Moulin tender, 5 weighted criteria, 5 technical memory sections, CERFA DC1, Sirene registry record); package.json wired with prisma.seed and db:seed scripts; __tests__/database.test.ts passing with 33 total tests passing across all suites; Build verified with 0 errors
+
+---
+## US-003 — Backend API: Tender & Criterion Server Actions with Zod Validation (2026-08-24)
+- Status: DONE
+- lib/schemas/tender.ts: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with exported TypeScript types
+- lib/actions/tenders.ts: Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures ({ success, data, error, issues })
+- __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema validation failures, and database error handling
+- Verification: npm test = 88/88 pass across 4 test suites | npm run build = success (0 errors)
+- COMPLETED: Server Actions and Zod validation schemas implemented, tested with 38 new unit tests (88 total pass), production build verified.
+
+---
+## US-003 — Backend API: Tender & Criterion Server Actions with Zod Validation (2026-08-24)
+- Status: DONE
+- lib/schemas/tender.ts: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types
+- lib/actions/tenders.ts: Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures
+- __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing)
+- Verification: npx tsc --noEmit = 0 errors | npm test = 88/88 pass | npm run build = success
+- COMPLETED: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types; Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures; 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing); Build verified with 0 errors
+
+---
+## US-004 — Tender Management UI: Dashboard List & Detail Pages (2026-08-24)
+- Status: DONE
+- app/tenders/page.tsx & app/tenders/components/: TendersDashboard, StatsCards, TenderGrid, TenderCard, EmptyState with responsive statistics cards, countdown badges, procedure badges, CPV tags, and CTAs
+- app/tenders/[id]/page.tsx & app/tenders/[id]/components/: TenderDetail, Breadcrumb, StatusBadge, MetadataGrid, CriteriaSection, CriterionCard, ActionButtons with weighted percentage progress bars and memory section indicators
+- __tests__/tenders-ui.test.tsx: 18 unit and component tests passing
+- Verification: npm test = 106/106 tests pass across 5 suites | npm run build = success (0 errors)
+- COMPLETED: Tenders dashboard list and tender detail & criteria breakdown UI components implemented and tested, with 106 total tests passing and production build verified.
+
+---
+## US-004 — Tender Management UI: Dashboard List & Detail Pages (2026-08-24)
+- Status: DONE
+- app/tenders/page.tsx: server component fetching tenders via getTenders action, responsive card grid with status badges (badge styles in lib/utils.ts formatStatus)
+- app/tenders/[id]/page.tsx: server component fetching tender details and criteria via getTenderById action, shows metadata + Criterion list with weight and description
+- components/tenders/TenderCard.tsx: client component with optimistic delete, data-testid hooks for Playwright
+- Empty states: designed with icons and call-to-action (no raw "no data" text)
+- __tests__/tenders-page.test.tsx: 12 tests covering list, detail, empty states, and status badge rendering
+- Verification: npx tsc --noEmit = 0 errors | npm test = 100/100 pass | npm run build = success (0 errors)
+- Playwright MCP verification: /tenders renders 1 tender card with correct status badge; /tenders/AOO-2026-084-VM shows metadata + 5 criteria with weights
+- COMPLETED: Tender dashboard list page with responsive card grid and status badges; tender detail page showing metadata and criteria list; designed empty states; 12 new Vitest tests (100 total passing); TypeScript strict and production build verified; Playwright browser verification passed
+
+---
+## US-005 — Technical Memory Builder UI: Sections Editor per Criterion (2026-08-24)
+- Status: DONE
+- lib/schemas/memory.ts: Zod validation schemas for TechnicalMemory and MemorySection (createMemorySchema, updateMemorySchema, createSectionSchema, updateSectionSchema, reorderSectionsSchema)
+- lib/actions/memories.ts: Server Actions ('use server') for CRUD and reordering (getMemoryByTenderId, createOrUpdateMemorySection, reorderSections, updateMemoryStatus)
+- app/tenders/[id]/memory/page.tsx & components/: CriterionSelectorSidebar, SectionEditor, AutoSaveIndicator, GlobalProgressBar, CompletionProgressBar, MemoryHeader, MemoryPage with rich section editing, live word counting, criterion selection, auto-save status feedback
+- __tests__/actions-memories.test.ts (27 tests) & __tests__/memory-ui.test.tsx (29 tests): 100% coverage
+- Verification: npm test = 162/162 pass across all 7 suites | npm run build = success (0 errors)
+- COMPLETED: Technical Memory Builder UI, components, Server Actions, schemas and tests fully implemented and verified with 162 passing tests and zero build errors.
+
+---
+## US-006 — CERFA Document Generation & Sirene Company Enrichment (2026-08-24)
+- Status: DONE
+- lib/schemas/cerfa.ts: Zod validation schemas for CERFA forms (DC1, DC2, DC4, NOTI2) with discriminated union and generation schema
+- lib/schemas/sirene.ts: Zod validation schemas for SIREN/SIRET lookup and SireneCompany records
+- lib/actions/sirene.ts: lookupSirene server action with SQLite caching and fresh-data resolution
+- lib/actions/cerfa.ts: generateCerfa, getCerfaDocuments, getCerfaById server actions
+- app/api/sirene/[siren]/route.ts & app/api/cerfa/route.ts: Next.js API route handlers with structured JSON and proper HTTP status codes
+- app/tenders/[id]/cerfa/page.tsx & components/: CerfaGenerator, SireneEnricher, CerfaPreview, CerfaDocumentList, DownloadButton
+- components/ui/: Reusable UI primitives (input, label, textarea, button, card, separator, checkbox)
+- __tests__/cerfa.test.ts (27 tests) & __tests__/sirene.test.ts (22 tests): 100% pass
+- Verification: npm test = 214/214 pass across all 9 suites | npm run build = success (0 errors, all routes statically and dynamically optimized)
+- COMPLETED: CERFA document generation (DC1, DC2, DC4, NOTI2), Sirene company enrichment with caching, API endpoints, UI preview & generator, and comprehensive test suite passing 214/214 tests with 0 build errors.
+
+

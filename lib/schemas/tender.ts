@@ -85,6 +85,7 @@ const tenderCoreSchema = z.object({
     emptyToUndefined,
     z.coerce.date({ invalid_type_error: "La date limite est invalide." }).optional()
   ),
+  dceUrl: optionalText("L'URL du DCE", 500),
   organizationId: requiredText("L'identifiant de l'organisation"),
   status: tenderStatusSchema,
 });

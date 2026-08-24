@@ -37,7 +37,17 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockedPrisma = vi.mocked(prisma, true);
+type LooseFn = ReturnType<typeof vi.fn>;
+type LoosePrisma = {
+  technicalMemory: Record<"findFirst" | "findUnique" | "create" | "update", LooseFn>;
+  memorySection: Record<"findMany" | "findUnique" | "create" | "update", LooseFn>;
+  criterion: Record<"findUnique" | "aggregate", LooseFn>;
+  $transaction: LooseFn;
+};
+
+// Loose typing intentional: Prisma delegate return types require full relation
+// graphs that fixtures deliberately omit; runtime behavior is unaffected.
+const mockedPrisma = vi.mocked(prisma, true) as unknown as LoosePrisma;
 
 const ORGANIZATION = {
   id: "org-novatech",
@@ -227,11 +237,12 @@ describe("getMemoryByTenderId", () => {
   });
 
   it("retourne null si aucun mémoire n'existe", async () => {
-    mockedPrisma.technicalMemory.findFirst.mockImplementation(async () => null);
+    mockedPrisma.technicalMemory.findFirst.mockResolvedValue(null);
 
     const result = await getMemoryByTenderId("tender-test-1", ORGANIZATION.id);
 
     expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.data).toBeNull();
   });
 

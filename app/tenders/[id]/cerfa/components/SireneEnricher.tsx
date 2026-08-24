@@ -16,7 +16,7 @@ export interface SireneCompany {
 }
 
 interface SireneEnricherProps {
-  onCompanySelect: (company: SireneCompany) => void;
+  onCompanySelect?: (company: SireneCompany) => void;
   initialSiren?: string;
 }
 
@@ -50,7 +50,7 @@ export function SireneEnricher({ onCompanySelect, initialSiren }: SireneEnricher
       }
 
       setCompany(data);
-      onCompanySelect(data);
+      onCompanySelect?.(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {

@@ -29,7 +29,14 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockedPrisma = vi.mocked(prisma, true);
+type LooseFn = ReturnType<typeof vi.fn>;
+type LoosePrisma = {
+  cerfaDocument: Record<"findMany" | "findUnique" | "create", LooseFn>;
+  technicalMemory: Record<"findUnique", LooseFn>;
+};
+
+// Loose typing intentional: Prisma delegate mocks omit full relation graphs.
+const mockedPrisma = vi.mocked(prisma, true) as unknown as LoosePrisma;
 
 const TENDER = {
   id: "tender-test-1",
@@ -455,7 +462,7 @@ describe("generateCerfa", () => {
         buyerAddress: {},
         candidate: { denomination: "" },
         signatory: { firstName: "", lastName: "", role: "" },
-      },
+      } as unknown as typeof validGenerateInput.payload,
     };
 
     mockedPrisma.technicalMemory.findUnique.mockResolvedValueOnce({
@@ -576,6 +583,7 @@ describe("getCerfaById", () => {
     const result = await getCerfaById("missing-id");
 
     expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.data).toBeNull();
   });
 

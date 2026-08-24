@@ -1,12 +1,11 @@
-"use client";
-
-import { Suspense, use } from "react";
+import { Suspense } from "react";
 import { MemoryPage } from "./components/MemoryPage";
 import { getMemoryByTenderId } from "@/lib/actions/memories";
+import { getActiveOrganization } from "@/lib/org";
 
 async function getMemoryData(tenderId: string) {
-  const organizationId = "org-1";
-  const result = await getMemoryByTenderId(tenderId, organizationId);
+  const org = await getActiveOrganization();
+  const result = await getMemoryByTenderId(tenderId, org.id);
   if (result.success) {
     return result.data;
   }

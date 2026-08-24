@@ -103,36 +103,20 @@ function DownloadButton({ document }: DownloadButtonProps) {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const payload = JSON.parse(document.payload);
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = globalThis.document.createElement("a");
-      a.href = url;
-      a.download = `${document.formNumber}-${document.id.slice(0, 8)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      const blob = new Blob([document.payload], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = globalThis.document.createElement("a");
-      a.href = url;
-      a.download = `${document.formNumber}-${document.id.slice(0, 8)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      window.open(`/api/cerfa/${document.id}/pdf`, "_blank", "noopener,noreferrer");
     } finally {
       setDownloading(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={downloading}
+    <a
+      href={`/api/cerfa/${document.id}/pdf`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setDownloading(true)}
       className="btn-secondary flex items-center gap-2"
-      aria-label={`Télécharger ${document.formNumber}`}
+      aria-label={`Télécharger ${document.formNumber} en PDF`}
     >
       {downloading ? (
         <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
@@ -155,8 +139,8 @@ function DownloadButton({ document }: DownloadButtonProps) {
         <Download className="h-4 w-4" aria-hidden="true" />
       )}
       <span className="hidden sm:inline">
-        {downloading ? "Téléchargement..." : "Télécharger"}
+        {downloading ? "Ouverture…" : "PDF"}
       </span>
-    </button>
+    </a>
   );
 }

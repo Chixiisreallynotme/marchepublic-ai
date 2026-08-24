@@ -214,6 +214,62 @@ export async function reorderSections(
   }
 }
 
+export type MemoryOverviewItem = {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: Date;
+  tenderId: string;
+  tenderTitle: string;
+  criteriaCount: number;
+  sectionsDone: number;
+  totalWeightedProgress: number;
+};
+
+export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>> {
+  try {
+    const memories = await prisma.technicalMemory.findMany({
+      orderBy: { updatedAt: "desc" },
+      include: {
+        tender: { select: { id: true, title: true } },
+        sections: {
+          select: {
+            content: true,
+            criterion: { select: { weight: true } },
+          },
+        },
+      },
+    });
+
+    const items = await Promise.all(
+      memories.map(async (memory) => {
+        const criteriaCount = await prisma.criterion.count({ where: { tenderId: memory.tenderId } });
+        const done = memory.sections.filter((s) => s.content.trim().length > 0);
+        const weightTotal = done.reduce((sum, s) => sum + (s.criterion?.weight ?? 0), 0);
+        const allWeights =
+          (await prisma.criterion.aggregate({ where: { tenderId: memory.tenderId }, _sum: { weight: true } }))
+            ._sum.weight ?? 0;
+        return {
+          id: memory.id,
+          title: memory.title,
+          status: memory.status,
+          updatedAt: memory.updatedAt,
+          tenderId: memory.tenderId,
+          tenderTitle: memory.tender.title,
+          criteriaCount,
+          sectionsDone: done.length,
+          totalWeightedProgress:
+            allWeights > 0 ? Math.round((weightTotal / allWeights) * 100) : 0,
+        };
+      })
+    );
+
+    return { success: true, data: items };
+  } catch (error) {
+    return handleDbError("La liste des mémoires techniques", error);
+  }
+}
+
 export async function updateMemoryStatus(
   memoryId: string,
   status: "DRAFT" | "IN_REVIEW" | "SUBMITTED"
