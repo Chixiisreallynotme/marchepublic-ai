@@ -19,14 +19,14 @@ export function AutoSaveIndicator({ isSaving, lastSaved, hasChanges }: AutoSaveI
   }
 
   return (
-    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+    <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status" aria-live="polite">
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
             "h-2 w-2 rounded-full transition-colors",
             isSaving ? "bg-blue-500 animate-pulse" : hasChanges ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
           )}
-          aria-label={isSaving ? "Sauvegarde en cours..." : hasChanges ? "Modifications non sauvegardées" : "Tout est sauvegardé"}
+          aria-hidden="true"
         />
         <span>{isSaving ? "Sauvegarde en cours..." : hasChanges ? "Modifications en cours..." : "Tout est sauvegardé"}</span>
       </div>

@@ -150,6 +150,7 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
                 const newStatus = e.target.value as "DRAFT" | "IN_REVIEW" | "SUBMITTED";
                 setMemory(prev => prev ? { ...prev, status: newStatus } : null);
               }}
+              aria-label="Statut du mémoire technique"
               className="px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="DRAFT">Brouillon</option>
