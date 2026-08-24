@@ -27,3 +27,11 @@ Started: 2026-08-24 15:30:00
 - Legal pages: mentions-legales, confidentialite, cgu, accessibilite
 - Verification: tsc 0 errors | 214/214 vitest | next build 0 errors | all 15 routes HTTP 200 | Playwright verified memory/simulation/new pages
 ---
+## US-017..US-019 — GAFAM UI polish (2026-08-24)
+- Status: DONE
+- Navbar active-link states via usePathname (desktop + mobile, aria-current), guarded for tests
+- TenderGrid rewritten as filterable tabs (Tous/Ouverts/En cours/Clôturés with counts); EmptyState preserved for zero-tender case
+- Design tokens: Instrument Serif --font-display, container max-w-7xl, prefers-reduced-motion kill-switch, refined btn hover/focus states
+- Landing rebuilt: gapless bento grid (border-divided ul), editorial hero 7xl serif, live DB stats strip, Reveal IO animations
+- Final verification: tsc clean | 214/214 tests | build OK | all routes 200 | Playwright screenshots landing + flows
+---
