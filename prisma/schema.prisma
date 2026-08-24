@@ -1,0 +1,152 @@
+// MarchePublic.ai — Prisma schema
+// SQLite datasource for the French public procurement platform.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// An organization: either an acheteur public (buyer issuing tenders)
+/// or a soumissionnaire (bidder answering them).
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  /// "BUYER" (acheteur public) or "BIDDER" (soumissionnaire)
+  role      String   @default("BIDDER")
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  postalCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sireneCompanyId String?
+  sireneCompany   SireneCompany? @relation(fields: [sireneCompanyId], references: [id], onDelete: SetNull)
+
+  tenders          Tender[]
+  technicalMemories TechnicalMemory[]
+}
+
+/// An appel d'offres (public tender) published by an Organization.
+model Tender {
+  id             String    @id @default(cuid())
+  title          String
+  reference      String    @unique
+  description    String?
+  /// "DRAFT" | "PUBLISHED" | "IN_PROGRESS" | "CLOSED" | "AWARDED"
+  status         String    @default("DRAFT")
+  procedureType  String    @default("APPEL_OFFRES_OUVERT")
+  buyerName      String?
+  estimatedValue Float?
+  publicationDate DateTime?
+  deadline       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  criteria          Criterion[]
+  technicalMemories TechnicalMemory[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+/// A selection criterion the bidder must address in the mémoire technique.
+model Criterion {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  weight      Float    @default(1.0)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  tenderId String
+  tender   Tender @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  sections MemorySection[]
+
+  @@index([tenderId])
+}
+
+/// A mémoire technique composed of MemorySections answering criteria.
+model TechnicalMemory {
+  id        String   @id @default(cuid())
+  title     String
+  /// "DRAFT" | "IN_REVIEW" | "SUBMITTED"
+  status    String   @default("DRAFT")
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenderId       String
+  tender         Tender       @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  sections         MemorySection[]
+  cerfaDocuments   CerfaDocument[]
+
+  @@index([tenderId])
+  @@index([organizationId])
+}
+
+/// A section of a TechnicalMemory, ideally mapped to one Criterion.
+model MemorySection {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @default("")
+  wordCount Int      @default(0)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memoryId    String
+  memory      TechnicalMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  criterionId String?
+  criterion   Criterion? @relation(fields: [criterionId], references: [id], onDelete: SetNull)
+
+  @@index([memoryId])
+  @@index([criterionId])
+}
+
+/// A generated CERFA administrative document tied to a mémoire technique.
+model CerfaDocument {
+  id         String   @id @default(cuid())
+  /// CERFA form number, e.g. "DC1" (cerfa 11197), "DC2" (cerfa 11207)
+  formNumber String
+  label      String?
+  /// JSON-serialized form field values
+  payload    String   @default("{}")
+  fileUrl    String?
+  createdAt  DateTime @default(now())
+
+  memoryId String
+  memory   TechnicalMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@index([memoryId])
+}
+
+/// A company identity resolved from the Sirene open-data registry and cached locally.
+model SireneCompany {
+  id           String   @id @default(cuid())
+  siren        String   @unique
+  nic          String?
+  denomination String
+  legalForm    String?
+  activityCode String?
+  address      String?
+  postalCode   String?
+  city         String?
+  fetchedAt    DateTime @default(now())
+
+  organizations Organization[]
+}

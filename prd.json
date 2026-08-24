@@ -1,0 +1,106 @@
+{
+  "project": "MarchePublic AI",
+  "branchName": "ralph/marchepublic-ai-foundation",
+  "description": "AI-assisted platform for French public procurement (marchés publics): manage tenders (appel d'offres), build technical memories (mémoires techniques) against selection criteria, generate CERFA documents and enrich responses with Sirene company data.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project Foundation: Next.js 15 App Router + Prisma Schema + Base Layout",
+      "description": "As a developer, I want the Next.js 15 App Router project scaffolded with TypeScript, Tailwind CSS, Prisma/SQLite schema and a sleek base layout so that all subsequent stories build on a stable foundation.",
+      "acceptanceCriteria": [
+        "package.json, tsconfig.json, tailwind.config.ts, postcss.config.mjs and next.config.ts exist with valid configuration",
+        "Dependencies installed: next, react, react-dom, typescript, tailwindcss, @types/node, @types/react, @types/react-dom, lucide-react, clsx, tailwind-merge, zod, vitest, @testing-library/react, @testing-library/jest-dom, jsdom, prisma, @prisma/client",
+        "prisma/schema.prisma defines SQLite datasource with models: Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany",
+        "lib/prisma.ts exports a singleton PrismaClient and lib/utils.ts exports cn() helper",
+        "app/layout.tsx, app/globals.css, app/page.tsx render a modern landing page with components/Navbar.tsx and components/Footer.tsx using Tailwind styling",
+        "__tests__/layout.test.tsx passes under vitest",
+        "Typecheck passes",
+        "Tests pass",
+        "npm run build completes with 0 errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Database Layer: Prisma Migrations & Seed Data",
+      "description": "As a developer, I want Prisma migrations applied to SQLite and seed data for organizations, tenders and criteria so that the app has realistic data to develop against.",
+      "acceptanceCriteria": [
+        "prisma migrate dev runs successfully creating dev.db",
+        "prisma/seed.ts inserts at least one Organization, one Tender with Criteria and one TechnicalMemory with MemorySections",
+        "Seed is wired into package.json via prisma.seed config",
+        "npx prisma studio opens the database without errors",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Backend API: Tender & Criterion Server Actions with Zod Validation",
+      "description": "As an API consumer, I want typed server actions to list, create, update and delete tenders and criteria with Zod validation so that the UI has a safe data access layer.",
+      "acceptanceCriteria": [
+        "lib/actions/tenders.ts exposes CRUD server actions validated with zod schemas from lib/schemas/tender.ts",
+        "Invalid payloads return structured error objects instead of throwing",
+        "Unit tests cover happy path and validation failure cases",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Tender Management UI: Dashboard List & Detail Pages",
+      "description": "As a bidder, I want a dashboard listing my tenders with status badges and a detail page per tender showing its criteria so that I can track every appel d'offres in one place.",
+      "acceptanceCriteria": [
+        "/tenders lists tenders fetched via server actions with responsive card grid styling",
+        "/tenders/[id] shows tender metadata and its Criterion list",
+        "Empty states are designed (no raw 'no data' text)",
+        "Typecheck passes",
+        "Tests pass",
+        "Verify in browser using Playwright MCP"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Technical Memory Builder UI: Sections Editor per Criterion",
+      "description": "As a bidder, I want an editor to draft MemorySection content answering each Tender criterion inside a TechnicalMemory so that I can compose my mémoire technique section by section.",
+      "acceptanceCriteria": [
+        "/tenders/[id]/memory lets me create/edit/reorder MemorySections mapped to criteria",
+        "Section editor persists drafts via server actions with optimistic UI feedback",
+        "Word count per section is displayed",
+        "Typecheck passes",
+        "Tests pass",
+        "Verify in browser using Playwright MCP"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "CERFA Document Generation & Sirene Company Enrichment",
+      "description": "As a bidder, I want to generate a CerfaDocument from my completed TechnicalMemory and auto-fill company identity from the SireneCompany registry so that administrative forms are produced without manual retyping.",
+      "acceptanceCriteria": [
+        "POST /api/cerfa generates a CerfaDocument record linked to a TechnicalMemory and returns a downloadable document",
+        "Sirene lookup endpoint resolves a SIREN into a SireneCompany record cached in SQLite",
+        "Generated document includes organization identity fields sourced from Sirene data",
+        "API errors return proper HTTP status codes with JSON bodies",
+        "Typecheck passes",
+        "Tests pass",
+        "Verify in browser using Playwright MCP"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

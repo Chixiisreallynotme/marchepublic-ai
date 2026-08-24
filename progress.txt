@@ -1,0 +1,24 @@
+# Ralph Progress Log
+Started: 2026-08-24
+---
+
+## Codebase Patterns
+
+- Framework: Next.js 15 App Router + TypeScript (strict)
+- Styling: Tailwind CSS with `cn()` helper from lib/utils.ts (clsx + tailwind-merge)
+- Database: Prisma ORM over SQLite (`prisma/schema.prisma`, singleton client in lib/prisma.ts)
+- Validation: Zod schemas colocated under lib/schemas/
+- Testing: Vitest + @testing-library/react + jsdom, tests live in `__tests__/`
+- Components: server components by default; client components only where interactivity requires ("use client")
+- Naming: PascalCase components in components/, kebab-case routes in app/
+
+---
+## US-001 — Project Foundation (2026-08-24)
+- Status: DONE
+- Next.js 15.5 + React 19 scaffolded (App Router, strict TS, Tailwind v3, path alias @/*)
+- All required deps installed (+ autoprefixer/postcss needed by Tailwind v3 PostCSS setup)
+- prisma/schema.prisma: SQLite datasource; models Organization, Tender, Criterion, TechnicalMemory, MemorySection, CerfaDocument, SireneCompany — `prisma validate` OK, client generated
+- lib/prisma.ts singleton, lib/utils.ts (cn/formatDate/formatAmount)
+- Landing page + Navbar/Footer (data-testid hooks for tests), fr-FR metadata
+- vitest.config.ts (jsdom, globals) + __tests__/layout.test.tsx
+- Verification: npx tsc --noEmit = 0 errors | npm test = 4/4 pass | npm run build = success (static prerender, 0 errors)
