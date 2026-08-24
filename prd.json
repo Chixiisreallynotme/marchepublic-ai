@@ -49,8 +49,8 @@
         "Typecheck passes",
         "Tests pass"
       ],
-      "priority": 2,
-      "passes": true,
+      "priority": 3,
+      "passes": false,
       "notes": ""
     },
     {

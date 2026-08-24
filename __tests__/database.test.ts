@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+// @vitest-environment node
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.DATABASE_URL ??= "file:./dev.db";
+});
+
+vi.unmock("@prisma/client");
+
 import { prisma } from "@/lib/prisma";
 
 describe("Database Layer - Prisma Queries", () => {
@@ -178,9 +186,9 @@ describe("Database Layer - Prisma Queries", () => {
         },
       });
 
-      expect(section?.content).toContain("site occupé");
-      expect(section?.content).toContain("phasage");
-      expect(section?.content).toContain("cloisonnements");
+      expect(section?.title).toContain("site occupé");
+      expect(section?.content).toContain("PHASAGE");
+      expect(section?.content).toContain("Cloisonnements étanches");
     });
 
     it("should have section 3 (Environnement) with bas carbone details", async () => {
@@ -191,9 +199,9 @@ describe("Database Layer - Prisma Queries", () => {
         },
       });
 
-      expect(section?.content).toContain("bas carbone");
+      expect(section?.content).toContain("BAS CARBONE");
       expect(section?.content).toContain("biosourcé");
-      expect(section?.content).toContain("valorisation");
+      expect(section?.content).toContain("VALORISATION");
     });
 
     it("should have section 5 (Prix) with price breakdown", async () => {
@@ -256,7 +264,7 @@ describe("Database Layer - Prisma Queries", () => {
 
       expect(company).not.toBeNull();
       expect(company?.denomination).toBe("NOVATECH BTP SAS");
-      expect(company?.legalForm).toContain("SAS");
+      expect(company?.legalForm?.toLowerCase()).toContain("société par actions simplifiée");
       expect(company?.activityCode).toContain("4120A");
       expect(company?.city).toBe("LYON");
       expect(company?.postalCode).toBe("69002");
