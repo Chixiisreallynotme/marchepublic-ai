@@ -6,6 +6,7 @@ import { vi } from "vitest";
 vi.mock("next/font/google", () => ({
   Inter: () => ({ variable: "--font-sans", className: "", style: {} }),
   Geist_Mono: () => ({ variable: "--font-mono", className: "", style: {} }),
+  Instrument_Serif: () => ({ variable: "--font-display", className: "", style: {} }),
 }));
 
 // Prisma engines must not spawn during unit tests. Under vitest's CJS/ESM

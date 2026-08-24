@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { renderCerfaPdf } from "@/lib/cerfa/pdf";
-import type { CerfaDocumentInput } from "@/lib/schemas/cerfa";
+import { renderCerfaPdf, normalizeCerfaPayload } from "@/lib/cerfa/pdf";
 
 export async function GET(
   request: NextRequest,
@@ -19,14 +18,16 @@ export async function GET(
       return NextResponse.json({ error: "Document introuvable." }, { status: 404 });
     }
 
-    let payload: CerfaDocumentInput;
+    let raw: unknown;
     try {
-      payload = JSON.parse(document.payload) as CerfaDocumentInput;
+      raw = JSON.parse(document.payload);
     } catch {
       return NextResponse.json({ error: "Contenu du document illisible." }, { status: 422 });
     }
 
-    const bytes = await renderCerfaPdf(payload);
+    const normalized = normalizeCerfaPayload(raw, document.formNumber);
+
+    const bytes = await renderCerfaPdf(normalized);
     const fileUrl = `/api/cerfa/${document.id}/pdf`;
 
     if (document.fileUrl !== fileUrl) {

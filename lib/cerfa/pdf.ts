@@ -124,6 +124,119 @@ function addressLine(a: { address?: string; postalCode?: string; city?: string }
   return [a.address, [a.postalCode, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 }
 
+type RawRecord = Record<string, unknown>;
+
+function str(raw: RawRecord, key: string): string | undefined {
+  const value = raw[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+/**
+ * Maps legacy flat payloads (pre-schema era, e.g. seeded documents) onto the
+ * current discriminated union so the renderer can print every stored document.
+ */
+export function normalizeCerfaPayload(raw: unknown, formNumber: string): CerfaDocumentInput {
+  if (
+    raw &&
+    typeof raw === "object" &&
+    ("formType" in raw || "formtype" in raw) &&
+    typeof (raw as RawRecord).formType === "string"
+  ) {
+    return raw as CerfaDocumentInput;
+  }
+
+  const legacy = (raw ?? {}) as RawRecord;
+  const formType =
+    formNumber === "DC1" || formNumber === "DC2" ? formNumber : "DC1";
+
+  const candidateBase = {
+    denomination:
+      ((legacy.candidate as RawRecord | undefined)?.denomination as string) ??
+      str(legacy, "raisonSociale") ??
+      "Candidat",
+    siren: str(legacy, "siren"),
+    siret: str(legacy, "siretSiege") ?? str(legacy, "siret"),
+    legalForm: str(legacy, "formeJuridique"),
+    activityCode: str(legacy, "codeAPE"),
+    address: str(legacy, "adresse"),
+    postalCode: str(legacy, "codePostal"),
+    city: str(legacy, "ville"),
+    email: str((legacy.contact as RawRecord | undefined) ?? {}, "email"),
+    phone: str((legacy.contact as RawRecord | undefined) ?? {}, "telephone"),
+  };
+
+  const representant = legacy.representantLegal as RawRecord | undefined;
+  const signataireLegacy = str(legacy, "signataire");
+
+  const signatory = {
+    firstName:
+      (str(representant ?? {}, "prenom") ?? signataireLegacy?.split(" ")[1] ?? signataireLegacy?.split(" ")[0]) || "—",
+    lastName:
+      (str(representant ?? {}, "nom") ?? signataireLegacy?.split(" ")[0]) || "—",
+    role:
+      (str(representant ?? {}, "fonction") ?? str(legacy, "qualiteSignataire")) ||
+      "Représentant légal",
+  };
+
+  if (formType === "DC2") {
+    const profCap = legacy.capacitesProfessionnelles as RawRecord | undefined;
+    const techCap = legacy.capacitesTechniques as RawRecord | undefined;
+    return {
+      formType: "DC2",
+      tenderReference: str(legacy, "tenderReference") ?? "Consultation",
+      buyerName: str(legacy, "buyerName") ?? "Acheteur public",
+      candidate: { ...candidateBase, isGroup: false },
+      capacity: {
+        legal: [
+          {
+            description:
+              str(profCap ?? {}, "inscriptionRegistre") ?? "Inscription au registre du commerce",
+            evidence: str(profCap ?? {}, "numeroInscription"),
+          },
+        ],
+        technical: [
+          {
+            description: str(profCap ?? {}, "moyensHumains") ?? "Moyens humains dédiés",
+            evidence: undefined,
+          },
+          {
+            description: str(profCap ?? {}, "moyensMateriels") ?? "Moyens matériels",
+            evidence: undefined,
+          },
+        ],
+        financial: [
+          {
+            description:
+              str(profCap ?? {}, "chiffreAffaires") ?? "Chiffre d'affaires des derniers exercices",
+            evidence: undefined,
+          },
+        ],
+      },
+      signatory,
+      declarationDate: new Date(),
+    } satisfies DC2Input;
+  }
+
+  return {
+    formType: "DC1",
+    tenderReference: str(legacy, "tenderReference") ?? "Consultation",
+    buyerName: str(legacy, "buyerName") ?? "Acheteur public",
+    buyerAddress: {},
+    candidate: { ...candidateBase, isGroup: false },
+    representative: representant
+      ? {
+          firstName: str(representant, "prenom") ?? "—",
+          lastName: str(representant, "nom") ?? "—",
+          role: str(representant, "fonction") ?? "Représentant légal",
+          email: candidateBase.email ?? "contact@exemple.fr",
+          phone: candidateBase.phone,
+        }
+      : undefined,
+    signatory,
+    declarationDate: new Date(),
+  } satisfies DC1Input;
+}
+
 export async function renderCerfaPdf(input: CerfaDocumentInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);

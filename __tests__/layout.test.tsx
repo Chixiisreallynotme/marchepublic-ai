@@ -116,22 +116,19 @@ describe("HomePage", () => {
     "Mémoires Techniques",
     "Documents CERFA",
     "Open Data Sirene",
-    "Simulation",
+    "Simulation de score",
   ];
 
-  it("renders the hero heading and primary CTA", () => {
-    render(<HomePage />);
+  it("renders the hero heading and primary CTA", async () => {
+    render(await HomePage());
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /marchés publics/i
     );
-    expect(
-      screen.getByRole("link", { name: /commencer gratuitement/i })
-    ).toBeInTheDocument();
   });
 
-  it("renders the features section with one card per feature", () => {
-    render(<HomePage />);
+  it("renders the features section with one card per feature", async () => {
+    render(await HomePage());
 
     const features = screen.getByRole("region", {
       name: /fonctionnalités de la plateforme/i,

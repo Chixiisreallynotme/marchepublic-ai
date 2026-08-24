@@ -93,7 +93,7 @@ interface EtalabResult {
   };
 }
 
-export function mapEtalabResult(result: EtalabResult): SireneApiResponse | null {
+function mapEtalabResult(result: EtalabResult): SireneApiResponse | null {
   const siren = result.siren;
   if (!siren) return null;
 
