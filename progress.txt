@@ -39,6 +39,15 @@ Started: 2026-08-24
 ---
 ## US-003 — Backend API: Tender & Criterion Server Actions with Zod Validation (2026-08-24)
 - Status: DONE
+- lib/schemas/tender.ts: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with exported TypeScript types
+- lib/actions/tenders.ts: Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures ({ success, data, error, issues })
+- __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema validation failures, and database error handling
+- Verification: npm test = 88/88 pass across 4 test suites | npm run build = success (0 errors)
+- COMPLETED: Server Actions and Zod validation schemas implemented, tested with 38 new unit tests (88 total pass), production build verified.
+
+---
+## US-003 — Backend API: Tender & Criterion Server Actions with Zod Validation (2026-08-24)
+- Status: DONE
 - lib/schemas/tender.ts: Zod validation schemas for tenders and criteria (createTenderSchema, updateTenderSchema, createCriterionSchema, updateCriterionSchema) with full TS types
 - lib/actions/tenders.ts: Next.js Server Actions ('use server') for CRUD operations (getTenders, getTenderById, createTender, updateTender, deleteTender, createCriterion, updateCriterion, deleteCriterion) with safe error structures
 - __tests__/actions-tenders.test.ts: 38 Vitest tests covering happy paths, schema errors, and DB error handling (88 total tests passing)
