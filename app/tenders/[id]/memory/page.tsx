@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { MemoryPage } from "./components/MemoryPage";
 import { getMemoryByTenderId } from "@/lib/actions/memories";
@@ -46,13 +47,19 @@ function PageSkeleton() {
   );
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getMemoryByTenderId(id);
+  return { title: result.success && result.data ? result.data.title : "Mémoire technique" };
+}
+
 export default async function MemoryPageRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const initialData = await getMemoryData(id);
 
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <MemoryPage initialData={initialData} />
+      <MemoryPage initialData={initialData} tenderId={id} />
     </Suspense>
   );
 }

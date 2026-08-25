@@ -6,6 +6,10 @@ import { getTenders } from "@/lib/actions/tenders";
 import { getTenderById } from "@/lib/actions/tenders";
 
 vi.mock("@/lib/actions/tenders");
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  usePathname: () => "/tenders",
+}));
 vi.mock("@/lib/utils", () => ({
   formatAmount: vi.fn((val) => val ? `${val.toLocaleString("fr-FR")} €` : "Non défini"),
   formatEUR: vi.fn((val) => val ? `${val.toLocaleString("fr-FR")} €` : "Non défini"),
@@ -227,7 +231,7 @@ describe("MetadataGrid", () => {
 
 describe("CriteriaSection", () => {
   it("renders criteria breakdown with weights and progress bars", () => {
-    render(<CriteriaSection criteria={mockTenderDetail.criteria} />);
+    render(<CriteriaSection tenderId="tender-1" criteria={mockTenderDetail.criteria} />);
 
     expect(screen.getByRole("heading", { name: /critères d'évaluation/i })).toBeInTheDocument();
     expect(screen.getByText(/total: 100%/i)).toBeInTheDocument();
@@ -251,7 +255,7 @@ describe("CriteriaSection", () => {
   });
 
   it("shows memory section completion status per criterion", () => {
-    render(<CriteriaSection criteria={mockTenderDetail.criteria} />);
+    render(<CriteriaSection tenderId="tender-1" criteria={mockTenderDetail.criteria} />);
 
     const memDone = screen.getAllByText(/mémoire: \d+ section[s]? rédigée/i);
     expect(memDone.length).toBeGreaterThanOrEqual(1);
@@ -260,7 +264,7 @@ describe("CriteriaSection", () => {
   });
 
   it("renders weight distribution visualization", () => {
-    render(<CriteriaSection criteria={mockTenderDetail.criteria} />);
+    render(<CriteriaSection tenderId="tender-1" criteria={mockTenderDetail.criteria} />);
 
     expect(screen.getByText(/répartition des poids/i)).toBeInTheDocument();
     const visualBarContainer = screen.getByRole("img", { name: /répartition visuelle des poids/i });
@@ -275,7 +279,7 @@ describe("CriteriaSection", () => {
         { id: "crit-2", title: "Critère 2", description: "", weight: 50, order: 2, createdAt: new Date(), tenderId: "tender-1", sections: [] },
       ],
     };
-    render(<CriteriaSection criteria={tenderWithOverweight.criteria} />);
+    render(<CriteriaSection tenderId="tender-1" criteria={tenderWithOverweight.criteria} />);
 
     expect(screen.getByText(/dépasse 100%/i)).toBeInTheDocument();
   });

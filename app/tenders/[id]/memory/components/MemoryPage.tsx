@@ -1,20 +1,30 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CriterionSelectorSidebar } from "./CriterionSelectorSidebar";
 import { SectionEditor } from "./SectionEditor";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { CriterionProgress, GlobalProgress } from "./ProgressBar";
-import { updateMemoryStatus } from "@/lib/actions/memories";
+import { createMemoryForTender, updateMemoryStatus } from "@/lib/actions/memories";
 import type { Criterion, Section, MemoryData } from "./types";
 
 function isDraftId(id: string): boolean {
   return id.startsWith("draft-") || id.startsWith("temp-");
 }
 
-export function MemoryPage({ initialData }: { initialData: MemoryData | null }) {
+export function MemoryPage({
+  initialData,
+  tenderId,
+}: {
+  initialData: MemoryData | null;
+  tenderId: string;
+}) {
+  const router = useRouter();
   const [memory, setMemory] = useState<MemoryData | null>(initialData);
   const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorLastSaved, setEditorLastSaved] = useState<Date | null>(null);
   const [editorHasChanges, setEditorHasChanges] = useState(false);
@@ -162,6 +172,18 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
     return { completed, total: sections.length };
   };
 
+  const handleCreateMemory = useCallback(async () => {
+    setCreating(true);
+    setCreateError(null);
+    const result = await createMemoryForTender(tenderId);
+    if (result.success) {
+      router.refresh();
+    } else {
+      setCreateError(result.error);
+      setCreating(false);
+    }
+  }, [tenderId, router]);
+
   if (!memory) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -170,7 +192,20 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <h2 className="text-xl font-semibold text-foreground mb-2">Aucun mémoire technique</h2>
-          <p className="text-muted-foreground">Créez un mémoire technique pour cet appel d'offres pour commencer la rédaction.</p>
+          <p className="text-muted-foreground mb-6">
+            Créez votre mémoire en un clic : les sections seront générées pour chaque critère de l&apos;appel d&apos;offres.
+          </p>
+          <button
+            type="button"
+            onClick={handleCreateMemory}
+            disabled={creating}
+            className="btn-primary mx-auto"
+          >
+            {creating ? "Création…" : "Créer le mémoire technique"}
+          </button>
+          {createError && (
+            <p className="mt-4 text-sm text-red-600" role="alert">{createError}</p>
+          )}
         </div>
       </div>
     );
@@ -255,12 +290,24 @@ export function MemoryPage({ initialData }: { initialData: MemoryData | null }) 
                 </div>
 
                 <div className="pt-4 border-t border-border">
-                  <button
-                    onClick={() => setSelectedCriterionId(memory.tender.criteria[0]?.id || null)}
-                    className="w-full px-6 py-3 text-base font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors"
-                  >
-                    Commencer la rédaction
-                  </button>
+                  {memory.tender.criteria.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+                      <p className="font-medium">Ajoutez d&apos;abord des critères d&apos;évaluation</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Chaque critère devient une section pondérée de votre mémoire.
+                      </p>
+                      <a href={`/tenders/${memory.tender.id}`} className="btn-primary mt-4 inline-flex">
+                        Ajouter des critères
+                      </a>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setSelectedCriterionId(memory.tender.criteria[0]?.id || null)}
+                      className="w-full px-6 py-3 text-base font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+                    >
+                      Commencer la rédaction
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -241,6 +241,50 @@ export async function reorderSections(
   }
 }
 
+export async function createMemoryForTender(
+  tenderId: string
+): Promise<ActionResult<TechnicalMemory>> {
+  try {
+    if (!tenderId || tenderId.trim().length === 0) {
+      return failure("L'identifiant de l'appel d'offres est requis.");
+    }
+
+    const tender = await prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: { id: true, title: true, organizationId: true },
+    });
+    if (!tender) {
+      return failure("Appel d'offres introuvable.");
+    }
+
+    const activeOrg = await getActiveOrganization();
+    if (tender.organizationId !== activeOrg.id) {
+      return failure("Cet appel d'offres n'appartient pas à votre organisation.");
+    }
+
+    const existing = await prisma.technicalMemory.findFirst({
+      where: { tenderId, organizationId: activeOrg.id },
+      select: { id: true },
+    });
+    if (existing) {
+      return { success: true, data: (await prisma.technicalMemory.findUnique({ where: { id: existing.id } }))! };
+    }
+
+    const created = await prisma.technicalMemory.create({
+      data: {
+        title: `Mémoire Technique — ${tender.title}`,
+        status: "DRAFT",
+        tenderId: tender.id,
+        organizationId: activeOrg.id,
+      },
+    });
+    logger.info("actions/memories", "memory created", { memoryId: created.id, tenderId });
+    return { success: true, data: created };
+  } catch (error) {
+    return handleDbError("La création du mémoire technique", error);
+  }
+}
+
 export type MemoryOverviewItem = {
   id: string;
   title: string;

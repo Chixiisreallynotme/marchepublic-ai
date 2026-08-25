@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTenderById, getTenders } from "@/lib/actions/tenders";
 import type { TenderWithCounts } from "@/lib/actions/tenders";
@@ -6,6 +7,12 @@ import { StatusBadge } from "./components/StatusBadge";
 import { MetadataGrid } from "./components/MetadataGrid";
 import { CriteriaSection } from "./components/CriteriaSection";
 import { ActionButtons } from "./components/ActionButtons";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const result = await getTenderById(id);
+  return { title: result.success ? result.data.title : "Appel d'offres" };
+}
 
 async function TenderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,7 +60,7 @@ async function TenderDetail({ params }: { params: Promise<{ id: string }> }) {
           <MetadataGrid tender={tender} />
         </div>
         <div className="lg:col-span-2">
-          <CriteriaSection criteria={tender.criteria} />
+          <CriteriaSection tenderId={tender.id} criteria={tender.criteria} />
         </div>
       </div>
     </div>

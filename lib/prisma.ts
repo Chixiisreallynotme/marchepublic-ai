@@ -13,10 +13,10 @@ export const prisma =
 // Fire-and-forget: engines without SQLite (tests, future Postgres) ignore it.
 if (process.env.NODE_ENV !== "test") {
   void prisma
-    .$executeRawUnsafe("PRAGMA journal_mode=WAL;")
+    .$queryRawUnsafe("PRAGMA journal_mode=WAL;")
     .catch(() => undefined);
   void prisma
-    .$executeRawUnsafe("PRAGMA busy_timeout=5000;")
+    .$queryRawUnsafe("PRAGMA busy_timeout=5000;")
     .catch(() => undefined);
 }
 

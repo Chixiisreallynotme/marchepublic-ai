@@ -137,6 +137,52 @@ export async function deleteTender(id: string): Promise<ActionResult<Tender>> {
   }
 }
 
+const DEFAULT_CRITERIA = [
+  { title: "Valeur technique de l'offre", weight: 40, description: "Qualité méthodologique, moyens humains et matériels, références pertinentes." },
+  { title: "Prix des prestations", weight: 30, description: "Cohérence et compétitivité de l'offre financière." },
+  { title: "Délais d'exécution", weight: 20, description: "Réalisme du planning et des phasages proposés." },
+  { title: "Démarche environnementale et RSE", weight: 10, description: "Insertion, déchets, bilan carbone, matériaux durables." },
+] as const;
+
+export async function createDefaultCriteria(
+  tenderId: string
+): Promise<ActionResult<Criterion[]>> {
+  try {
+    if (!tenderId || tenderId.trim().length === 0) {
+      return failure("L'identifiant de l'appel d'offres est requis.");
+    }
+
+    const tender = await prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: { id: true, organizationId: true },
+    });
+    if (!tender) {
+      return failure("Appel d'offres introuvable.");
+    }
+    const { getActiveOrganization } = await import("@/lib/org");
+    const activeOrg = await getActiveOrganization();
+    if (tender.organizationId !== activeOrg.id) {
+      return failure("Cet appel d'offres n'appartient pas à votre organisation.");
+    }
+
+    const existingCount = await prisma.criterion.count({ where: { tenderId } });
+    if (existingCount > 0) {
+      return failure("Des critères existent déjà pour cet appel d'offres.");
+    }
+
+    const created = await prisma.$transaction(
+      DEFAULT_CRITERIA.map((c, index) =>
+        prisma.criterion.create({
+          data: { tenderId, title: c.title, weight: c.weight, description: c.description, order: index + 1 },
+        })
+      )
+    );
+    return { success: true, data: created };
+  } catch (error) {
+    return handleDbError("La création des critères types", error);
+  }
+}
+
 export async function createCriterion(input: unknown): Promise<ActionResult<Criterion>> {
   try {
     const parsed = createCriterionSchema.safeParse(input);
