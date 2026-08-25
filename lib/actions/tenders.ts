@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 import {
   PRISMA_FOREIGN_KEY_VIOLATION,
   PRISMA_RECORD_NOT_FOUND,
@@ -42,7 +43,7 @@ function handleDbError(operationLabel: string, error: unknown): ActionFailure {
     case PRISMA_RECORD_NOT_FOUND:
       return failure(`${operationLabel} : élément introuvable.`);
     default:
-      console.error(`[actions/tenders] ${operationLabel}`, error);
+      logger.error("actions/tenders", operationLabel, error);
       return failure(
         `${operationLabel} : une erreur interne est survenue. Réessayez plus tard.`
       );

@@ -83,13 +83,13 @@ export type LookupSireneInput = z.infer<typeof lookupSireneSchema>;
 
 export const sireneApiResponseSchema = z.object({
   siren: z.string().regex(/^\d{9}$/),
-  nic: z.string().regex(/^\d{5}$/).optional(),
+  nic: z.string().regex(/^\d{5}$/).nullable().optional(),
   denomination: z.string().min(1),
-  legalForm: z.string().optional(),
-  activityCode: z.string().optional(),
-  address: z.string().optional(),
-  postalCode: z.string().regex(/^\d{5}$/).optional(),
-  city: z.string().optional(),
+  legalForm: z.string().nullable().optional(),
+  activityCode: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  postalCode: z.string().regex(/^\d{5}$/).nullable().optional(),
+  city: z.string().nullable().optional(),
 });
 
 export type SireneApiResponse = z.infer<typeof sireneApiResponseSchema>;

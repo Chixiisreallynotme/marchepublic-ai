@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 import {
   PRISMA_FOREIGN_KEY_VIOLATION,
   PRISMA_RECORD_NOT_FOUND,
@@ -48,7 +49,7 @@ function handleDbError(operationLabel: string, error: unknown): ActionFailure {
     case PRISMA_RECORD_NOT_FOUND:
       return failure(`${operationLabel} : élément introuvable.`);
     default:
-      console.error(`[actions/memories] ${operationLabel}`, error);
+      logger.error("actions/memories", operationLabel, error);
       return failure(
         `${operationLabel} : une erreur interne est survenue. Réessayez plus tard.`
       );
@@ -62,18 +63,17 @@ function countWords(text: string): number {
 
 export async function getMemoryByTenderId(
   tenderId: string,
-  organizationId: string
+  organizationId?: string
 ): Promise<ActionResult<TechnicalMemoryWithRelations | null>> {
   try {
     if (!tenderId || tenderId.trim().length === 0) {
       return failure("L'identifiant de l'appel d'offres est requis.");
     }
-    if (!organizationId || organizationId.trim().length === 0) {
-      return failure("L'identifiant de l'organisation est requis.");
-    }
+    // Seam unique: l'organisation active est résolue ici, comme sur les writes.
+    const resolvedOrgId = organizationId?.trim() || (await getActiveOrganization()).id;
 
     const memory = await prisma.technicalMemory.findFirst({
-      where: { tenderId, organizationId },
+      where: { tenderId, organizationId: resolvedOrgId },
       include: {
         tender: {
           include: { criteria: { orderBy: { order: "asc" } } },
@@ -215,14 +215,25 @@ export async function reorderSections(
       return failure("Ce mémoire technique n'appartient pas à votre organisation.");
     }
 
-    const updatedSections = await prisma.$transaction(
-      sections.map((s) =>
-        prisma.memorySection.update({
-          where: { id: s.id },
-          data: { order: s.order },
-        })
-      )
+    // Batch unique: un seul statement CASE au lieu de N updates. Les ids et
+    // orders sont strictement validés ci-dessus/ici, l'injection est impossible
+    // (caractères alphanumériques/-/_ uniquement, entiers bornés).
+    const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+    for (const s of sections) {
+      if (!ID_RE.test(s.id) || !Number.isInteger(s.order) || s.order < 0 || s.order > 9999) {
+        return failure("Payload de réorganisation invalide.");
+      }
+    }
+    const cases = sections.map((s) => `WHEN '${s.id}' THEN ${s.order}`).join(" ");
+    const idList = sections.map((s) => `'${s.id}'`).join(",");
+    await prisma.$executeRawUnsafe(
+      `UPDATE "MemorySection" SET "order" = CASE "id" ${cases} END, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" IN (${idList})`
     );
+
+    const updatedSections = await prisma.memorySection.findMany({
+      where: { id: { in: sectionIds } },
+      orderBy: { order: "asc" },
+    });
 
     return { success: true, data: updatedSections };
   } catch (error) {
@@ -247,19 +258,22 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
     // 3 requêtes groupées, progression pondérée EXACTE (poids des critères
     // réellement complétés), pagination bornée.
     const activeOrg = await getActiveOrganization();
-    const [memories, criteriaGroups] = await Promise.all([
-      prisma.technicalMemory.findMany({
-        where: { organizationId: activeOrg.id },
-        orderBy: { updatedAt: "desc" },
-        take: 200,
-        include: { tender: { select: { id: true, title: true } } },
-      }),
-      prisma.criterion.groupBy({
-        by: ["tenderId"],
-        _count: { _all: true },
-        _sum: { weight: true },
-      }),
-    ]);
+    const memories = await prisma.technicalMemory.findMany({
+      where: { organizationId: activeOrg.id },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+      include: { tender: { select: { id: true, title: true } } },
+    });
+    const memoryTenderIds = [...new Set(memories.map((m) => m.tender.id))];
+    const criteriaGroups =
+      memoryTenderIds.length > 0
+        ? await prisma.criterion.groupBy({
+            by: ["tenderId"],
+            _count: { _all: true },
+            _sum: { weight: true },
+            where: { tenderId: { in: memoryTenderIds } },
+          })
+        : [];
 
     const completedWeightByMemory = new Map<string, number>();
     const completedCriteriaByMemory = new Map<string, Set<string>>();

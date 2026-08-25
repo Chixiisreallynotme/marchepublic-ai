@@ -19,3 +19,5 @@ next-env.d.ts
 .perfection/
 .playwright-mcp/
 PERFECTION_PROGRESS.md
+
+backups/

@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "db:push": "npx prisma db push",
     "db:seed": "npx prisma db seed",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "db:backup": "bash scripts/backup-db.sh"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

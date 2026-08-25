@@ -267,13 +267,18 @@ describe("getMemoryByTenderId", () => {
     expect(mockedPrisma.technicalMemory.findFirst).not.toHaveBeenCalled();
   });
 
-  it("retourne une erreur si organizationId est vide", async () => {
+  it("résout l'organisation active quand organizationId est vide (seam unique)", async () => {
+    const memory = memoryFixture();
+    mockedPrisma.technicalMemory.findFirst.mockResolvedValueOnce({
+      ...memory,
+      tender: { ...TENDER, criteria: [] },
+      sections: [],
+    });
+
     const result = await getMemoryByTenderId("tender-test-1", "   ");
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("requis");
-    }
+    expect(result.success).toBe(true);
+    expect(mockedPrisma.organization.findFirst).toHaveBeenCalled();
   });
 
   it("retourne une erreur structurée en cas d'échec base de données", async () => {
@@ -466,7 +471,7 @@ describe("createOrUpdateMemorySection", () => {
 });
 
 describe("reorderSections", () => {
-  it("réorganise les sections dans une transaction", async () => {
+  it("réorganise les sections via un batch CASE unique", async () => {
     const existingSections = [
       sectionFixture({ id: "sec-1", order: 0 }),
       sectionFixture({ id: "sec-2", order: 1 }),
@@ -476,8 +481,19 @@ describe("reorderSections", () => {
       { ...existingSections[1], order: 0 },
     ];
 
-    mockedPrisma.memorySection.findMany.mockImplementation(async () => existingSections);
-    mockedPrisma.$transaction.mockImplementation(async () => updatedSections);
+    // 1er findMany: existence check; 2e: lecture post-batch.
+    mockedPrisma.memorySection.findMany
+      .mockResolvedValueOnce(existingSections)
+      .mockResolvedValueOnce(updatedSections);
+    const loose = mockedPrisma as unknown as {
+      $executeRawUnsafe: ReturnType<typeof vi.fn>;
+    };
+    loose.$executeRawUnsafe = vi.fn().mockResolvedValue(2);
+
+    // Org scoping: le mémoire parent appartient à l'org active.
+    mockedPrisma.technicalMemory.findUnique.mockResolvedValueOnce({
+      organizationId: ORGANIZATION.id,
+    });
 
     const result = await reorderSections({
       sections: [
@@ -490,7 +506,10 @@ describe("reorderSections", () => {
     expect(result.data).toHaveLength(2);
     expect(result.data[0].order).toBe(1);
     expect(result.data[1].order).toBe(0);
-    expect(mockedPrisma.$transaction).toHaveBeenCalled();
+    expect(loose.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+    const sql = loose.$executeRawUnsafe.mock.calls[0][0] as string;
+    expect(sql).toContain("CASE");
+    expect(sql).not.toContain(";"); // anti-injection: pas de statement break
   });
 
   it("rejette si une section est introuvable", async () => {

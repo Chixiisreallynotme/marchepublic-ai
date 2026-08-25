@@ -162,6 +162,9 @@ export const dc2Schema = z.object({
           })
         )
         .optional(),
+      turnoverHistory: optionalText("Historique du chiffre d'affaires", 5000),
+      workforceHistory: optionalText("Historique des effectifs", 5000),
+      references: optionalText("Références", 5000),
     })
     .optional(),
   signatory: z.object({

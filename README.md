@@ -55,9 +55,9 @@ prisma/                schéma 7 modèles + seed
 |---|---|
 | Mono-tenant sans auth | NextAuth + scoping `organizationId` sur toutes les writes (seam déjà en place via `getActiveOrganization`) |
 | SQLite | Postgres managé : `provider = "postgresql"` dans schema.prisma → `prisma migrate dev` → re-seed ; `DATABASE_URL` seul change |
-| SQLite WAL activé (`PRAGMA journal_mode=WAL`, busy_timeout 5s) | Backup : `sqlite3 .backup` croné ou snapshot volume avant migration |
+| SQLite WAL activé (`PRAGMA journal_mode=WAL`, busy_timeout 5s) | Backup : `npm run db:backup` (script `scripts/backup-db.sh`, WAL-safe, purge 30j) — cron exemple : `0 3 * * *` |
 | Rate-limit en mémoire (fenêtre fixe par IP : upload 10/min, cerfa 20/min, sirene 30/min, review 5/min, sections 60/min) | Store partagé (Upstash/Redis) au scaling horizontal |
-| Observabilité : logs console structurés par domaine | OpenTelemetry + alerting |
+| Observabilité : logger JSON structuré (`lib/logger.ts`) sur toutes les erreurs actions | OpenTelemetry + alerting | OpenTelemetry + alerting |
 
 ## Qualité
 
