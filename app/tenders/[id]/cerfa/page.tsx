@@ -70,7 +70,7 @@ export default async function CerfaPage({ params }: { params: Promise<{ id: stri
   }
   
   const tender = tenderResult.data;
-  const memoryResult = await getMemoryByTenderId(id, tender.organizationId);
+  const memoryResult = await getMemoryByTenderId(id);
   const memoryId = memoryResult.success && memoryResult.data ? memoryResult.data.id : "";
   
   const documents = await getCerfaData(id);

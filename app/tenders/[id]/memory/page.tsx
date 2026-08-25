@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { MemoryPage } from "./components/MemoryPage";
 import { getMemoryByTenderId } from "@/lib/actions/memories";
-import { getActiveOrganization } from "@/lib/org";
 
 async function getMemoryData(tenderId: string) {
-  const org = await getActiveOrganization();
-  const result = await getMemoryByTenderId(tenderId, org.id);
+  const result = await getMemoryByTenderId(tenderId);
   if (result.success) {
     return result.data;
   }

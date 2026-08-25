@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { getTenderById } from "@/lib/actions/tenders";
 import { getMemoryByTenderId } from "@/lib/actions/memories";
-import { getActiveOrganization } from "@/lib/org";
 import { computeSimulation } from "@/lib/simulation";
 import { SimulationView } from "./SimulationView";
 
@@ -22,8 +21,7 @@ export default async function SimulationPage({
   const tenderResult = await getTenderById(tenderId);
   if (!tenderResult.success) notFound();
 
-  const org = await getActiveOrganization();
-  const memoryResult = await getMemoryByTenderId(tenderId, org.id);
+  const memoryResult = await getMemoryByTenderId(tenderId);
   const memory = memoryResult.success ? memoryResult.data : null;
 
   const simulation = memory

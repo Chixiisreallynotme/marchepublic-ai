@@ -63,15 +63,15 @@ function countWords(text: string): number {
 }
 
 export async function getMemoryByTenderId(
-  tenderId: string,
-  organizationId?: string
+  tenderId: string
 ): Promise<ActionResult<TechnicalMemoryWithRelations | null>> {
   try {
     if (!tenderId || tenderId.trim().length === 0) {
       return failure("L'identifiant de l'appel d'offres est requis.");
     }
-    // Seam unique: l'organisation active est résolue ici, comme sur les writes.
-    const resolvedOrgId = organizationId?.trim() || (await getActiveOrganization()).id;
+    // Seam unique côté serveur uniquement: l'organisation active n'est jamais
+    // fournie par le client (surface "use server" publique).
+    const resolvedOrgId = (await getActiveOrganization()).id;
 
     const memory = await prisma.technicalMemory.findFirst({
       where: { tenderId, organizationId: resolvedOrgId },
@@ -182,6 +182,9 @@ export async function reorderSections(
 
     const { sections } = parsed.data;
 
+    if (sections.length === 0) {
+      return failure("Au moins une section est requise pour la réorganisation.");
+    }
     if (sections.length > 50) {
       return failure("Trop de sections à réorganiser (50 maximum).");
     }
@@ -333,13 +336,13 @@ export async function listMemories(): Promise<ActionResult<MemoryOverviewItem[]>
           })
         : [];
     for (const row of sectionRows) {
-      if (!row.criterion) continue;
+      if (!row.criterion || row.criterionId === null) continue;
       completedWeightByMemory.set(
         row.memoryId,
         (completedWeightByMemory.get(row.memoryId) ?? 0) + row.criterion.weight
       );
       const set = completedCriteriaByMemory.get(row.memoryId) ?? new Set<string>();
-      set.add(row.criterionId as string);
+      set.add(row.criterionId);
       completedCriteriaByMemory.set(row.memoryId, set);
     }
 

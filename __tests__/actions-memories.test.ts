@@ -235,7 +235,7 @@ describe("getMemoryByTenderId", () => {
       sections: sections.map((s) => ({ ...s, criterion: criteria.find((c) => c.id === s.criterionId) ?? null })),
     } as TechnicalMemoryWithRelations));
 
-    const result = await getMemoryByTenderId("tender-test-1", ORGANIZATION.id);
+    const result = await getMemoryByTenderId("tender-test-1");
 
     if (!result.success) throw new Error(result.error);
     expect(result.data?.id).toBe("memory-test-1");
@@ -253,7 +253,7 @@ describe("getMemoryByTenderId", () => {
   it("retourne null si aucun mémoire n'existe", async () => {
     mockedPrisma.technicalMemory.findFirst.mockResolvedValue(null);
 
-    const result = await getMemoryByTenderId("tender-test-1", ORGANIZATION.id);
+    const result = await getMemoryByTenderId("tender-test-1");
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
@@ -261,7 +261,7 @@ describe("getMemoryByTenderId", () => {
   });
 
   it("retourne une erreur si tenderId est vide", async () => {
-    const result = await getMemoryByTenderId("   ", ORGANIZATION.id);
+    const result = await getMemoryByTenderId("   ");
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -278,7 +278,7 @@ describe("getMemoryByTenderId", () => {
       sections: [],
     });
 
-    const result = await getMemoryByTenderId("tender-test-1", "   ");
+    const result = await getMemoryByTenderId("tender-test-1");
 
     expect(result.success).toBe(true);
     expect(mockedPrisma.organization.findFirst).toHaveBeenCalled();
@@ -289,7 +289,7 @@ describe("getMemoryByTenderId", () => {
       throw new Error("connection refused");
     });
 
-    const result = await getMemoryByTenderId("tender-test-1", ORGANIZATION.id);
+    const result = await getMemoryByTenderId("tender-test-1");
 
     expect(result.success).toBe(false);
     if (!result.success) {

@@ -75,12 +75,14 @@ export const createSectionSchema = sectionCoreSchema;
 export const updateSectionSchema = sectionCoreSchema.partial();
 
 export const reorderSectionsSchema = z.object({
-  sections: z.array(
-    z.object({
-      id: z.string({ required_error: "L'identifiant de la section est requis." }),
-      order: z.number({ required_error: "L'ordre est requis." }).int().min(0),
-    })
-  ),
+  sections: z
+    .array(
+      z.object({
+        id: z.string({ required_error: "L'identifiant de la section est requis." }),
+        order: z.number({ required_error: "L'ordre est requis." }).int().min(0),
+      })
+    )
+    .min(1, "Au moins une section est requise pour la réorganisation."),
 });
 
 export type CreateMemoryInput = z.infer<typeof createMemorySchema>;
