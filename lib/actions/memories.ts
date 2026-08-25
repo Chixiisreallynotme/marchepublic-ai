@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/shared";
 export type { ActionResult, FieldIssues } from "@/lib/actions/shared";
 
+import { Prisma } from "@prisma/client";
 import type {
   Criterion,
   MemorySection,
@@ -215,20 +216,17 @@ export async function reorderSections(
       return failure("Ce mémoire technique n'appartient pas à votre organisation.");
     }
 
-    // Batch unique: un seul statement CASE au lieu de N updates. Les ids et
-    // orders sont strictement validés ci-dessus/ici, l'injection est impossible
-    // (caractères alphanumériques/-/_ uniquement, entiers bornés).
-    const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-    for (const s of sections) {
-      if (!ID_RE.test(s.id) || !Number.isInteger(s.order) || s.order < 0 || s.order > 9999) {
-        return failure("Payload de réorganisation invalide.");
-      }
-    }
-    const cases = sections.map((s) => `WHEN '${s.id}' THEN ${s.order}`).join(" ");
-    const idList = sections.map((s) => `'${s.id}'`).join(",");
-    await prisma.$executeRawUnsafe(
-      `UPDATE "MemorySection" SET "order" = CASE "id" ${cases} END, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" IN (${idList})`
+    // Batch unique paramétré (défense en profondeur): un statement CASE via
+    // $executeRaw + Prisma.sql — zéro interpolation de chaîne, valeurs liées.
+    const whenClauses = Prisma.join(
+      sections.map((s) => Prisma.sql`WHEN ${s.id} THEN ${s.order}`)
     );
+    const idList = Prisma.join(sections.map((s) => s.id));
+    await prisma.$executeRaw`
+      UPDATE "MemorySection"
+      SET "order" = CASE "id" ${whenClauses} END, "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" IN (${idList})
+    `;
 
     const updatedSections = await prisma.memorySection.findMany({
       where: { id: { in: sectionIds } },

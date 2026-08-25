@@ -38,6 +38,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
     },
     $transaction: vi.fn(),
+    $executeRaw: vi.fn().mockResolvedValue(2),
   },
 }));
 
@@ -48,6 +49,7 @@ type LoosePrisma = {
   criterion: Record<"findUnique" | "aggregate", LooseFn>;
   organization: Record<"findFirst" | "create", LooseFn>;
   $transaction: LooseFn;
+  $executeRaw: LooseFn;
 };
 
 // Loose typing intentional: Prisma delegate return types require full relation
@@ -486,9 +488,9 @@ describe("reorderSections", () => {
       .mockResolvedValueOnce(existingSections)
       .mockResolvedValueOnce(updatedSections);
     const loose = mockedPrisma as unknown as {
-      $executeRawUnsafe: ReturnType<typeof vi.fn>;
+      $executeRaw: ReturnType<typeof vi.fn>;
     };
-    loose.$executeRawUnsafe = vi.fn().mockResolvedValue(2);
+    loose.$executeRaw = vi.fn().mockResolvedValue(2);
 
     // Org scoping: le mémoire parent appartient à l'org active.
     mockedPrisma.technicalMemory.findUnique.mockResolvedValueOnce({
@@ -506,10 +508,10 @@ describe("reorderSections", () => {
     expect(result.data).toHaveLength(2);
     expect(result.data[0].order).toBe(1);
     expect(result.data[1].order).toBe(0);
-    expect(loose.$executeRawUnsafe).toHaveBeenCalledTimes(1);
-    const sql = loose.$executeRawUnsafe.mock.calls[0][0] as string;
-    expect(sql).toContain("CASE");
-    expect(sql).not.toContain(";"); // anti-injection: pas de statement break
+    expect(loose.$executeRaw).toHaveBeenCalledTimes(1);
+    const sqlArg = loose.$executeRaw.mock.calls[0];
+    const sql = JSON.stringify(sqlArg);
+    expect(sql).toContain("WHEN"); // structure CASE présente (paramétrée)
   });
 
   it("rejette si une section est introuvable", async () => {

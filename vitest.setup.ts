@@ -48,5 +48,19 @@ vi.mock("@prisma/client", () => {
     }
   }
 
-  return { PrismaClient };
+  return {
+    PrismaClient,
+    // Namespace statique utilisé par $executeRaw (Prisma.sql / Prisma.join).
+    Prisma: {
+      sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+        strings,
+        values,
+      }),
+      join: (values: unknown[], separator = ",") => ({
+        values,
+        separator,
+      }),
+      empty: () => ({ strings: [""], values: [] }),
+    },
+  };
 });;

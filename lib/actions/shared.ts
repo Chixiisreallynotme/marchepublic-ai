@@ -1,3 +1,10 @@
+/**
+ * Primitives partagées de toutes les Server Actions (pattern ActionResult).
+ * Toute action renvoie { success, data } ou { success, error, issues } —
+ * jamais d'exception traversante vers le client.
+ *
+ * @domain tenders, memories, cerfa, sirene
+ */
 import type { z } from "zod";
 
 export type FieldIssues = Record<string, string[]>;
