@@ -23,13 +23,31 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "MarchéPublic.ai — L'IA au service de vos marchés publics",
     template: "%s | MarchéPublic.ai",
   },
   description:
     "Plateforme d'assistance IA pour les marchés publics français : appels d'offres, mémoires techniques, documents CERFA et données Sirene.",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: SITE_URL,
+    siteName: "MarchéPublic.ai",
+    title: "MarchéPublic.ai — L'IA au service de vos marchés publics",
+    description:
+      "Structurez vos appels d'offres, rédigez vos mémoires techniques critère par critère et générez vos documents CERFA pré-remplis.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MarchéPublic.ai",
+    description:
+      "Appels d'offres, mémoires techniques et CERFA — l'IA au service des marchés publics.",
+  },
 };
 
 export default function RootLayout({

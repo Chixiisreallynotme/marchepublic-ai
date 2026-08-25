@@ -87,15 +87,17 @@ describe("components", () => {
     expect(screen.getAllByRole("link", { name: "Démarrer maintenant" }).length).toBeGreaterThan(0);
   });
 
-  it("Footer renders République Française badge, legal links and status indicators", () => {
+  it("Footer renders République Française badge, legal links and live health status", async () => {
     render(h(Footer));
     expect(screen.getByText(/République Française/i)).toBeInTheDocument();
     expect(screen.getByText(/Liberté · Égalité · Fraternité/i)).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: /Liens légaux/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Mentions légales/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Politique de confidentialité/i })).toBeInTheDocument();
-    expect(screen.getByText(/API opérationnelle/i)).toBeInTheDocument();
-    expect(screen.getByText(/Base Sirene synchronisée/i)).toBeInTheDocument();
+    // HealthStatus interroge GET /api/health puis affiche les vérifications réelles.
+    expect(await screen.findByText(/Base de données/i)).toBeInTheDocument();
+    expect(screen.getByText(/Registre Sirene/i)).toBeInTheDocument();
+    expect(screen.getByText(/Génération CERFA/i)).toBeInTheDocument();
   });
 });
 

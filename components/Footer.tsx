@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { Scale, HeartHandshake, ShieldCheck, Activity } from "lucide-react";
+import { HealthStatus } from "./HealthStatus";
 
 const LEGAL_LINKS = [
   { href: "/mentions-legales", label: "Mentions légales" },
   { href: "/confidentialite", label: "Politique de confidentialité" },
   { href: "/cgu", label: "Conditions générales d'utilisation" },
   { href: "/accessibilite", label: "Accessibilité : partiellement conforme" },
-] as const;
-
-const STATUS_ITEMS = [
-  { label: "API opérationnelle", tone: "bg-emerald-500" },
-  { label: "Base Sirene synchronisée", tone: "bg-emerald-500" },
-  { label: "Génération CERFA active", tone: "bg-emerald-500" },
 ] as const;
 
 function RepubliqueBadge() {
@@ -72,17 +67,9 @@ export function Footer() {
               <Activity className="h-4 w-4 text-emerald-500" aria-hidden="true" />
               État des services
             </h2>
-            <ul className="space-y-2.5">
-              {STATUS_ITEMS.map(({ label, tone }) => (
-                <li key={label} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                  <span aria-hidden="true" className={`relative flex h-2 w-2`}>
-                    <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${tone} opacity-60`} />
-                    <span className={`relative inline-flex h-2 w-2 rounded-full ${tone}`} />
-                  </span>
-                  {label}
-                </li>
-              ))}
-            </ul>
+            {/* États réels servis par GET /api/health (base de données, registre Sirene,
+                générateur CERFA) — rafraîchis toutes les 5 minutes. */}
+            <HealthStatus />
             <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-brand-500" aria-hidden="true" />
               Données hébergées en France — RGPD

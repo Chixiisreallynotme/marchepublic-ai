@@ -52,7 +52,9 @@ export async function POST(request: NextRequest) {
     }
 
     const fileName = `${randomUUID()}.${kind}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    // Volume montable en prod (Docker/VPS) : UPLOAD_DIR=/data/uploads
+    const uploadDir =
+      process.env.UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));
 
