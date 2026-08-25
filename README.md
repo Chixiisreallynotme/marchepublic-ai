@@ -24,6 +24,7 @@ npm run dev            # http://localhost:3000
 | Variable | Requis | Description |
 |---|---|---|
 | `DATABASE_URL` | oui | `file:./dev.db` (Prisma/SQLite) |
+| `ACCESS_TOKEN` | non | Session locale par token : si défini, toute l'app est protégée (page `/login`, cookie httpOnly 30 j). Absent = app ouverte (dev) |
 | `LLM_API_KEY` | non | Active l'analyse IA de la simulation (endpoint compatible OpenAI) |
 | `LLM_BASE_URL` | non | Défaut `https://api.openai.com/v1` (Mistral, Groq, OpenRouter compatibles) |
 | `LLM_MODEL` | non | Défaut `gpt-4o-mini` |

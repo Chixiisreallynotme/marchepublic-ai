@@ -109,7 +109,10 @@ export const dc1Schema = z.object({
       firstName: requiredText("Prénom", 1),
       lastName: requiredText("Nom", 1),
       role: requiredText("Qualité", 1),
-      email: z.string().email("Format d'email invalide."),
+      email: z.preprocess(
+        emptyToUndefined,
+        z.string().email("Format d'email invalide.").optional()
+      ),
       phone: optionalText("Téléphone", 20),
     })
     .optional(),

@@ -245,7 +245,7 @@ export function normalizeCerfaPayload(raw: unknown, formNumber: string): CerfaDo
           firstName: str(representant, "prenom") ?? "—",
           lastName: str(representant, "nom") ?? "—",
           role: str(representant, "fonction") ?? "Représentant légal",
-          email: candidateBase.email ?? "contact@exemple.fr",
+          email: candidateBase.email,
           phone: candidateBase.phone,
         }
       : undefined,
