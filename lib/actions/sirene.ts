@@ -128,7 +128,12 @@ function mapEtalabResult(result: EtalabResult): SireneApiResponse | null {
   };
 }
 
-async function fetchFromEtalab(siren: string): Promise<SireneApiResponse | null> {
+type EtalabOutcome =
+  | { status: "found"; data: SireneApiResponse }
+  | { status: "not-found" }
+  | { status: "upstream-down" };
+
+async function fetchFromEtalab(siren: string): Promise<EtalabOutcome> {
   try {
     const response = await fetchWithResilience(
       `${ETALAB_SEARCH_URL}?q=${encodeURIComponent(siren)}&page=1&per_page=1`,
@@ -137,17 +142,20 @@ async function fetchFromEtalab(siren: string): Promise<SireneApiResponse | null>
 
     if (!response || !response.ok) {
       console.warn(`[Sirene] ETALAB API error: ${response?.status ?? "no response"}`);
-      return null;
+      return { status: "upstream-down" };
     }
 
     const data = (await response.json()) as { results?: EtalabResult[] };
     const first = data.results?.[0];
-    if (!first) return null;
+    // Réponse 200 sans résultat = entreprise inexistante (définitif,
+    // pas un problème d'upstream) — le fallback offline est interdit ici.
+    if (!first) return { status: "not-found" };
 
-    return mapEtalabResult(first);
+    const mapped = mapEtalabResult(first);
+    return mapped ? { status: "found", data: mapped } : { status: "not-found" };
   } catch (error) {
     console.warn("[Sirene] ETALAB fetch failed:", error);
-    return null;
+    return { status: "upstream-down" };
   }
 }
 
@@ -241,14 +249,37 @@ export async function lookupSirene(input: LookupSireneInput): Promise<ActionResu
       return { success: true, data: cached };
     }
 
-    let apiResponse =
-      (await fetchFromEtalab(siren)) ??
-      (await fetchFromInseeApi(siren)) ??
-      buildOfflineFallback(siren);
+    let apiResponse: SireneApiResponse | null = null;
+    let upstreamDown = false;
+
+    const etalab = await fetchFromEtalab(siren);
+    if (etalab.status === "found") {
+      apiResponse = etalab.data;
+    } else if (etalab.status === "upstream-down") {
+      upstreamDown = true;
+      const insee = await fetchFromInseeApi(siren);
+      if (insee) {
+        apiResponse = insee;
+        upstreamDown = false;
+      }
+    } else {
+      return failure(
+        "Aucune entreprise trouvée dans le registre Sirene pour ce SIREN."
+      );
+    }
+
+    if (!apiResponse) {
+      if (!upstreamDown) {
+        return failure(
+          "Entreprise introuvable dans le registre Sirene (recherche-entreprises.api.gouv.fr)."
+        );
+      }
+      apiResponse = buildOfflineFallback(siren);
+    }
 
     if (!apiResponse) {
       return failure(
-        "Entreprise introuvable dans le registre Sirene (recherche-entreprises.api.gouv.fr)."
+        "Registre Sirene momentanément indisponible. Réessayez dans quelques instants."
       );
     }
 
