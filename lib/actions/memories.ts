@@ -219,7 +219,8 @@ export async function reorderSections(
     // Batch unique paramétré (défense en profondeur): un statement CASE via
     // $executeRaw + Prisma.sql — zéro interpolation de chaîne, valeurs liées.
     const whenClauses = Prisma.join(
-      sections.map((s) => Prisma.sql`WHEN ${s.id} THEN ${s.order}`)
+      sections.map((s) => Prisma.sql`WHEN ${s.id} THEN ${s.order}`),
+      " "
     );
     const idList = Prisma.join(sections.map((s) => s.id));
     await prisma.$executeRaw`
