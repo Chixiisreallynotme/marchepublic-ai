@@ -21,3 +21,7 @@ next-env.d.ts
 PERFECTION_PROGRESS.md
 
 backups/
+
+# SQLite WAL sidecar files
+*.db-wal
+*.db-shm
