@@ -37,7 +37,8 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(),
       create: vi.fn(),
     },
-    $transaction: vi.fn(),
+    // Transaction interactive: exécute le callback avec prisma comme tx.
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
     $executeRaw: vi.fn().mockResolvedValue(2),
   },
 }));

@@ -107,66 +107,65 @@ export async function createOrUpdateMemorySection(
 
     const { memoryId, criterionId, content, ...rest } = parsed.data;
 
-    const memory = await prisma.technicalMemory.findUnique({
-      where: { id: memoryId },
-    });
-    if (!memory) {
-      return failure("Mémoire technique introuvable.");
-    }
-
+    // Transaction interactive: ferme la fenêtre TOCTOU check-then-write.
     const activeOrg = await getActiveOrganization();
-    if (memory.organizationId !== activeOrg.id) {
-      return failure("Ce mémoire technique n'appartient pas à votre organisation.");
-    }
-
-    if (criterionId) {
-      const criterion = await prisma.criterion.findUnique({
-        where: { id: criterionId },
-        select: { tenderId: true },
+    const result = await prisma.$transaction(async (tx) => {
+      const memory = await tx.technicalMemory.findUnique({
+        where: { id: memoryId },
       });
-      if (!criterion) {
-        return failure("Critère introuvable.");
+      if (!memory) return failure("Mémoire technique introuvable.");
+      if (memory.organizationId !== activeOrg.id) {
+        return failure("Ce mémoire technique n'appartient pas à votre organisation.");
       }
-      if (criterion.tenderId !== memory.tenderId) {
-        return failure("Ce critère n'appartient pas à cet appel d'offres.");
-      }
-    }
 
-    const wordCount = countWords(content);
-    const sectionId = parsed.data.id;
-
-    if (sectionId) {
-      const existing = await prisma.memorySection.findUnique({
-        where: { id: sectionId },
-        select: { memoryId: true },
-      });
-      if (!existing || existing.memoryId !== memoryId) {
-        return failure("Section introuvable dans ce mémoire technique.");
+      if (criterionId) {
+        const criterion = await tx.criterion.findUnique({
+          where: { id: criterionId },
+          select: { tenderId: true },
+        });
+        if (!criterion) return failure("Critère introuvable.");
+        if (criterion.tenderId !== memory.tenderId) {
+          return failure("Ce critère n'appartient pas à cet appel d'offres.");
+        }
       }
-      const updated = await prisma.memorySection.update({
-        where: { id: sectionId },
+
+      const wordCount = countWords(content);
+      const sectionId = parsed.data.id;
+
+      if (sectionId) {
+        const existing = await tx.memorySection.findUnique({
+          where: { id: sectionId },
+          select: { memoryId: true },
+        });
+        if (!existing || existing.memoryId !== memoryId) {
+          return failure("Section introuvable dans ce mémoire technique.");
+        }
+        const updated = await tx.memorySection.update({
+          where: { id: sectionId },
+          data: {
+            ...rest,
+            content,
+            wordCount,
+            criterionId: criterionId ?? null,
+          },
+        });
+        return { success: true as const, data: updated };
+      }
+
+      // Never trust client-supplied ids on create: let Prisma generate the PK.
+      const { id: _ignored, ...createRest } = rest;
+      const created = await tx.memorySection.create({
         data: {
-          ...rest,
+          ...createRest,
           content,
           wordCount,
+          memoryId,
           criterionId: criterionId ?? null,
         },
       });
-      return { success: true, data: updated };
-    }
-
-    // Never trust client-supplied ids on create: let Prisma generate the PK.
-    const { id: _ignored, ...createRest } = rest;
-    const created = await prisma.memorySection.create({
-      data: {
-        ...createRest,
-        content,
-        wordCount,
-        memoryId,
-        criterionId: criterionId ?? null,
-      },
+      return { success: true as const, data: created };
     });
-    return { success: true, data: created };
+    return result;
   } catch (error) {
     return handleDbError("La création ou mise à jour de la section", error);
   }
@@ -204,8 +203,9 @@ export async function reorderSections(
     }
 
     // Org scoping: cohérent avec createOrUpdate/updateStatus.
+    const parentMemoryId = existingSections[0].memoryId;
     const parentMemory = await prisma.technicalMemory.findUnique({
-      where: { id: memoryIds.values().next().value as string },
+      where: { id: parentMemoryId },
       select: { organizationId: true },
     });
     if (!parentMemory) {
@@ -218,20 +218,21 @@ export async function reorderSections(
 
     // Batch unique paramétré (défense en profondeur): un statement CASE via
     // $executeRaw + Prisma.sql — zéro interpolation de chaîne, valeurs liées.
-    const whenClauses = Prisma.join(
-      sections.map((s) => Prisma.sql`WHEN ${s.id} THEN ${s.order}`),
-      " "
-    );
-    const idList = Prisma.join(sections.map((s) => s.id));
-    await prisma.$executeRaw`
-      UPDATE "MemorySection"
-      SET "order" = CASE "id" ${whenClauses} END, "updatedAt" = CURRENT_TIMESTAMP
-      WHERE "id" IN (${idList})
-    `;
-
-    const updatedSections = await prisma.memorySection.findMany({
-      where: { id: { in: sectionIds } },
-      orderBy: { order: "asc" },
+    const updatedSections = await prisma.$transaction(async (tx) => {
+      const whenClauses = Prisma.join(
+        sections.map((s) => Prisma.sql`WHEN ${s.id} THEN ${s.order}`),
+        " "
+      );
+      const idList = Prisma.join(sections.map((s) => s.id));
+      await tx.$executeRaw`
+        UPDATE "MemorySection"
+        SET "order" = CASE "id" ${whenClauses} END, "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" IN (${idList})
+      `;
+      return tx.memorySection.findMany({
+        where: { id: { in: sectionIds } },
+        orderBy: { order: "asc" },
+      });
     });
 
     return { success: true, data: updatedSections };
@@ -263,10 +264,9 @@ export async function createMemoryForTender(
 
     const existing = await prisma.technicalMemory.findFirst({
       where: { tenderId, organizationId: activeOrg.id },
-      select: { id: true },
     });
     if (existing) {
-      return { success: true, data: (await prisma.technicalMemory.findUnique({ where: { id: existing.id } }))! };
+      return { success: true, data: existing };
     }
 
     const created = await prisma.technicalMemory.create({
@@ -393,22 +393,26 @@ export async function updateMemoryStatus(
       return validationFailure(parsed.error);
     }
 
-    const existing = await prisma.technicalMemory.findUnique({
-      where: { id: memoryId },
-      select: { organizationId: true },
+    const activeOrg = await getActiveOrganization();
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.technicalMemory.findUnique({
+        where: { id: memoryId },
+        select: { organizationId: true },
+      });
+      if (!existing) return null;
+      if (existing.organizationId !== activeOrg.id) return "forbidden";
+      return tx.technicalMemory.update({
+        where: { id: memoryId },
+        data: { status: parsed.data.status },
+      });
     });
-    if (!existing) {
+
+    if (updated === null) {
       return failure("Mémoire technique introuvable.");
     }
-    const activeOrg = await getActiveOrganization();
-    if (existing.organizationId !== activeOrg.id) {
+    if (updated === "forbidden") {
       return failure("Ce mémoire technique n'appartient pas à votre organisation.");
     }
-
-    const updated = await prisma.technicalMemory.update({
-      where: { id: memoryId },
-      data: { status: parsed.data.status },
-    });
 
     return { success: true, data: updated };
   } catch (error) {
