@@ -42,7 +42,10 @@ export function CerfaGenerator({
     try {
       const result = await generateCerfaPrefilled(tenderId, memoryId, formType);
       if (!result.success) {
-        throw new Error(result.error);
+        const firstIssue = result.issues
+          ? Object.values(result.issues).flat()[0]
+          : undefined;
+        throw new Error(firstIssue ?? result.error);
       }
       setSuccess(`${result.data.formNumber} généré — pré-rempli depuis vos données d'entreprise.`);
       router.refresh();

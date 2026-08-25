@@ -70,7 +70,7 @@ const companySchema = z.object({
       .optional()
   ),
   legalForm: optionalText("Forme juridique", 100),
-  activityCode: optionalText("Code activité (APE/NAF)", 10),
+  activityCode: optionalText("Code activité (APE/NAF)", 20),
   ...addressSchema.shape,
   email: z.preprocess(
     emptyToUndefined,

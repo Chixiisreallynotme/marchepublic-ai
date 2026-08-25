@@ -292,7 +292,7 @@ describe("CriteriaSection", () => {
         { id: "crit-2", title: "Critère 2", description: "", weight: 20, order: 2, createdAt: new Date(), tenderId: "tender-1", sections: [] },
       ],
     };
-    render(<CriteriaSection criteria={tenderWithUnderweight.criteria} />);
+    render(<CriteriaSection tenderId="tender-1" criteria={tenderWithUnderweight.criteria} />);
 
     expect(screen.getByText(/incomplet/i)).toBeInTheDocument();
   });

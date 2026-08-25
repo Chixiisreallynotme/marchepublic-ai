@@ -53,7 +53,7 @@ export async function TenderDetail({ params }: { params: Promise<{ id: string }>
           <MetadataGrid tender={tender} />
         </div>
         <div className="lg:col-span-2">
-          <CriteriaSection criteria={tender.criteria} />
+          <CriteriaSection tenderId={id} criteria={tender.criteria} />
         </div>
       </div>
     </div>

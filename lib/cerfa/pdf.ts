@@ -127,6 +127,16 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
   return lines.length ? lines : [""];
 }
 
+// JSON round-trips turn Date into ISO strings — coerce safely for rendering.
+function toDate(v: unknown): Date | undefined {
+  if (v instanceof Date) return v;
+  if (typeof v === "string" || typeof v === "number") {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }
+  return undefined;
+}
+
 function addressLine(a: { address?: string; postalCode?: string; city?: string }): string {
   return [a.address, [a.postalCode, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 }
@@ -285,7 +295,7 @@ function renderDc1(pdf: PDFDocument, regular: PDFFont, bold: PDFFont, d: DC1Inpu
 
   doc.section("Signature");
   doc.fields([
-    { label: "Fait à / le", value: `${d.declarationDate?.toLocaleDateString("fr-FR") ?? new Date().toLocaleDateString("fr-FR")} — Date et signature du candidat` },
+    { label: "Fait à / le", value: `${toDate(d.declarationDate)?.toLocaleDateString("fr-FR") ?? new Date().toLocaleDateString("fr-FR")} — Date et signature du candidat` },
     { label: "Signataire", value: `${d.signatory.firstName} ${d.signatory.lastName}` },
     { label: "Qualité", value: d.signatory.role },
   ]);
@@ -341,7 +351,7 @@ function renderDc2(pdf: PDFDocument, regular: PDFFont, bold: PDFFont, d: DC2Inpu
 
   doc.section("Signature");
   doc.fields([
-    { label: "Fait à / le", value: d.declarationDate?.toLocaleDateString("fr-FR") ?? new Date().toLocaleDateString("fr-FR") },
+    { label: "Fait à / le", value: toDate(d.declarationDate)?.toLocaleDateString("fr-FR") ?? new Date().toLocaleDateString("fr-FR") },
     { label: "Signataire", value: `${d.signatory.firstName} ${d.signatory.lastName}` },
     { label: "Qualité", value: d.signatory.role },
   ]);

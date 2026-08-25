@@ -41,12 +41,15 @@ export function buildPrefillPayload(args: {
 }): CerfaDocumentInput {
   const { formType, tender, org, sirene } = args;
   const addr = splitAddress(sirene, org);
+  const rawActivity = sirene?.activityCode ?? undefined;
+  // Normalise "4120A - Libellé complet" → "4120A" (le schema borne à 20).
+  const activityCode = rawActivity ? rawActivity.split(" - ")[0].slice(0, 20) : undefined;
   const baseCandidate = {
     denomination: sirene?.denomination ?? org.name,
     siren: sirene?.siren,
     siret: sirene?.siren && sirene?.nic ? `${sirene.siren}${sirene.nic}` : undefined,
     legalForm: sirene?.legalForm ?? undefined,
-    activityCode: sirene?.activityCode ?? undefined,
+    activityCode,
     ...addr,
     email: org.email ?? undefined,
     phone: org.phone ?? undefined,
