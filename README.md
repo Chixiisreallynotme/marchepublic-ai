@@ -69,6 +69,18 @@ npm run build      # build production
 
 Boucle de certification : `python3 ~/.agents/skills/loop-until-is-perfect/scripts/perfection_evaluator.py --base-dir . --target 99` (composite unlazy 30% / anti-slop 15% / secrets 20% / tests 35%, hard-block sur placeholder ou secret).
 
+## Déploiement Docker
+
+```bash
+docker compose up -d --build   # http://localhost:3000
+```
+
+- Volume `marchepublic-data` → `/app/data` (base SQLite `prod.db` + uploads persistants)
+- Au démarrage : `prisma db push` puis seed idempotent, puis `next start`
+- Healthcheck Docker sur `GET /api/health` (503 si base indisponible)
+- Domaine de prod : `NEXT_PUBLIC_SITE_URL=https://ton-domaine.fr docker compose up -d --build`
+  (inliné au build : metadataBase, robots.txt, sitemap.xml)
+
 ## Périmètre V1 (mono-tenant)
 
 Une organisation soumissionnaire (résolution auto via `lib/org.ts`). Auth multi-organisation et Postgres sont explicitement V2.

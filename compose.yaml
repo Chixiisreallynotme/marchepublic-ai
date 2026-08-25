@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Inliné au build : metadataBase, robots.txt, sitemap.xml
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:/app/data/prod.db
+      UPLOAD_DIR: /app/data/uploads
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      INSEE_API_TOKEN: ${INSEE_API_TOKEN:-}
+      SIRENE_MOCK: ${SIRENE_MOCK:-0}
+    volumes:
+      - marchepublic-data:/app/data
+    command: sh -c "npx prisma db push --skip-generate && npm run db:seed && npm start"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  marchepublic-data:
